@@ -1,20 +1,21 @@
 # Makefile for the Tactical Aim Assist Project
 #
 # developer: ingekastel (with AI assistance)
-# version: 1.6.1 (Final Linker Fix for DirectSound)
+# version: 2.1.0 (Final Linker Fix with User-Provided Paths)
 # date: 2025-06-26
 # project: Tactical Aim Assist
 
 # --- Compiler and Flags ---
 CXX = g++
 CXXFLAGS = -std=c++17 -g -Wall -Wextra -O2
-LDFLAGS = -mwindows
+LDFLAGS = -mwindows -static-libgcc -static-libstdc++
 
-# --- Directories and Paths ---
+# --- Directories and Paths (User-Provided) ---
 SRCDIR = src
 OBJDIR = obj
 AUBIO_PATH = aubio
 PORTAUDIO_PATH = portaudio
+WINSDK_PATH = winsdk-7-master/v7.1A
 
 # --- Files and Executable ---
 TARGET = TacticalAimAssist.exe
@@ -22,24 +23,33 @@ SRCS = $(wildcard $(SRCDIR)/*.cpp)
 OBJS = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRCS))
 
 # --- Include Paths ---
+# Added the specific path to the Windows SDK Include directory.
 INC_FLAGS = -I$(SRCDIR) \
             -I$(AUBIO_PATH)/src \
-            -I$(PORTAUDIO_PATH)/include
+            -I$(PORTAUDIO_PATH)/include \
+            -I$(WINSDK_PATH)/Include
 
-# --- Library Search Paths ---
+# --- Library Paths and Files ---
+# Define search paths for the linker.
 LIB_PATHS = -L$(AUBIO_PATH)/build/src \
             -L$(PORTAUDIO_PATH)/lib/.libs
 
-# --- Libraries to Link ---
-# FIX: Added -ldsound for the DirectSound dependency required by PortAudio.
-LIBS = -laubio -lportaudio -ldsound -lwinmm -lole32 -luuid -lksguid -lgdi32
+# FIX: Using the exact filenames provided by the user.
+# The linker will now be pointed directly to these files.
+AUBIO_LIB_FILE = $(AUBIO_PATH)/build/src/libaubio.a
+PORTAUDIO_LIB_FILE = $(PORTAUDIO_PATH)/lib/.libs/libportaudio.dll.a
+
+# System libraries required for PortAudio and Windows GUI functions.
+SYSTEM_LIBS = -lwinmm -lole32 -luuid -lksguid -lgdi32
 
 # --- Build Rules ---
 all: $(TARGET)
 
+# The linker command now uses the explicit library file paths.
+# This is the most robust way to ensure the linker finds everything.
 $(TARGET): $(OBJS)
-	@echo "Linking executable with all system dependencies..."
-	$(CXX) $(OBJS) -o $@ $(LIB_PATHS) $(LIBS) $(LDFLAGS)
+	@echo "Linking executable with explicit library paths..."
+	$(CXX) $(OBJS) -o $@ $(LIB_PATHS) $(AUBIO_LIB_FILE) $(PORTAUDIO_LIB_FILE) $(SYSTEM_LIBS) $(LDFLAGS)
 	@echo "Build finished: $(TARGET)"
 
 # Compile each source file into an object file
