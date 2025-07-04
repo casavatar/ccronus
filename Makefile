@@ -6,7 +6,7 @@
 # project: Tactical Aim Assist
 
 # --- Compiler and Flags ---
-CXX = g++
+CXX = x86_64-w64-mingw32-g++-posix
 CXXFLAGS = -std=c++17 -g -Wall -Wextra -O2
 LDFLAGS = -mwindows -static-libgcc -static-libstdc++
 
@@ -31,13 +31,13 @@ INC_FLAGS = -I$(SRCDIR) \
 
 # --- Library Paths and Files ---
 # Define search paths for the linker.
-LIB_PATHS = -L$(AUBIO_PATH)/build/src \
-            -L$(PORTAUDIO_PATH)/lib/.libs
+LIB_PATHS = -L.
 
 # FIX: Using the exact filenames provided by the user.
 # The linker will now be pointed directly to these files.
-AUBIO_LIB_FILE = $(AUBIO_PATH)/build/src/libaubio.a
-PORTAUDIO_LIB_FILE = $(PORTAUDIO_PATH)/lib/.libs/libportaudio.dll.a
+AUBIO_LIB_FILE = -l:libaubio-5.dll
+PORTAUDIO_LIB_FILE = -l:libportaudio-2.dll
+SNDFILE_LIB_FILE = -l:libsndfile-1.dll
 
 # System libraries required for PortAudio and Windows GUI functions.
 SYSTEM_LIBS = -lwinmm -lole32 -luuid -lksguid -lgdi32
@@ -49,7 +49,7 @@ all: $(TARGET)
 # This is the most robust way to ensure the linker finds everything.
 $(TARGET): $(OBJS)
 	@echo "Linking executable with explicit library paths..."
-	$(CXX) $(OBJS) -o $@ $(LIB_PATHS) $(AUBIO_LIB_FILE) $(PORTAUDIO_LIB_FILE) $(SYSTEM_LIBS) $(LDFLAGS)
+	$(CXX) $(OBJS) -o $@ $(LIB_PATHS) $(AUBIO_LIB_FILE) $(PORTAUDIO_LIB_FILE) $(SNDFILE_LIB_FILE) $(SYSTEM_LIBS) $(LDFLAGS)
 	@echo "Build finished: $(TARGET)"
 
 # Compile each source file into an object file
