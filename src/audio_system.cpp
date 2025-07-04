@@ -4,24 +4,23 @@
 // communication between threads.
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 1.2.0
+// version: 1.2.4
 // date: 2025-06-26
 // project: Tactical Aim Assist
 
 #include "audio_system.h"
 #include "globals.h"
-#include "gui.h" // For updating the GUI
+#include "gui.h"
 
-#include <portaudio.h>
-#include <aubio/aubio.h>
 #include <iostream>
+
+// Note: Headers for portaudio and aubio are now included via audio_system.h
 
 AudioManager::AudioManager(uint32_t sample_rate, uint32_t buffer_size, uint32_t hop_size)
     : m_sample_rate(sample_rate), m_buffer_size(buffer_size), m_hop_size(hop_size),
-      m_ring_buffer(sample_rate * 5) // 5 seconds of buffer
+      m_ring_buffer(sample_rate * 5)
 {
     Pa_Initialize();
-    // Aubio setup: "default" onset detection method. Threshold is critical for tuning.
     m_onset_obj = new_aubio_onset("default", m_buffer_size, m_hop_size, m_sample_rate);
     aubio_onset_set_threshold(m_onset_obj, 0.3f);
 }
@@ -38,7 +37,6 @@ AudioManager::~AudioManager() {
 bool AudioManager::start() {
     m_running = true;
 
-    // Use WASAPI loopback to capture system audio on Windows
     const PaDeviceIndex dev_idx = Pa_GetDefaultOutputDevice();
     const PaDeviceInfo* dev_info = Pa_GetDeviceInfo(dev_idx);
 
@@ -53,12 +51,12 @@ bool AudioManager::start() {
     PaError err = Pa_OpenStream(
         &m_stream,
         &stream_params,
-        nullptr, // No output
+        nullptr,
         m_sample_rate,
         m_buffer_size,
         paClipOff,
         paCallback,
-        this // Pass this instance to the callback
+        this
     );
 
     if (err != paNoError) {
@@ -101,10 +99,11 @@ std::string AudioManager::getLatestAlert() {
     return "";
 }
 
-// Static callback function for PortAudio
+// FIX: Corrected the callback signature to exactly match PaStreamCallback.
 int AudioManager::paCallback(const void* inputBuffer, void* /*outputBuffer*/,
                            unsigned long framesPerBuffer,
-                           const void* /*timeInfo*/, PaStreamCallbackFlags /*statusFlags*/,
+                           const PaStreamCallbackTimeInfo* /*timeInfo*/,
+                           PaStreamCallbackFlags /*statusFlags*/,
                            void* userData) {
     AudioManager* self = static_cast<AudioManager*>(userData);
     const float* in = static_cast<const float*>(inputBuffer);
@@ -115,16 +114,18 @@ int AudioManager::paCallback(const void* inputBuffer, void* /*outputBuffer*/,
     return paContinue;
 }
 
-// Analysis thread main loop
 void AudioManager::analysisLoop() {
     std::vector<float> analysis_buffer(m_buffer_size);
-    fvec_t aubio_input = {0};
+    
+    // FIX: Use designated initializers or direct member assignment
+    // to silence -Wmissing-field-initializers warning.
+    fvec_t aubio_input;
     aubio_input.length = m_hop_size;
     aubio_input.data = analysis_buffer.data();
     
-    fvec_t onset_output = {0};
-    onset_output.length = 1;
     float onset_value = 0;
+    fvec_t onset_output;
+    onset_output.length = 1;
     onset_output.data = &onset_value;
 
     while (m_running) {
@@ -133,16 +134,10 @@ void AudioManager::analysisLoop() {
             aubio_onset_do(m_onset_obj, &aubio_input, &onset_output);
 
             if (onset_value > 0.f) {
-                // --- Onset Detected ---
-                // This is where filtering logic for "step" vs "shot" would go.
-                // For now, we generate a generic alert.
-                // A real implementation would analyze the FFT, energy, etc.
-                // of the `analysis_buffer` content.
                 std::string* new_alert = new std::string("¡Evento de Sonido Detectado!");
-                delete m_last_alert.exchange(new_alert); // Atomically replace and delete the old alert
+                delete m_last_alert.exchange(new_alert);
             }
         } else {
-            // Wait a bit if the buffer is empty
             std::this_thread::sleep_for(std::chrono::milliseconds(10));
         }
     }

@@ -6,9 +6,10 @@
 // date: 2025-06-26
 // project: Tactical Aim Assist
 
-#include "globals.h"
-#include "profiles.h"
-#include "systems.h"
+#include "globals.h" // Include the global header for definitions and declarations
+#include "profiles.h" // Include the profiles header for weapon profiles
+#include "systems.h" // Include the systems header for various tactical systems
+#include "audio_system.h" // Include the audio system header for audio management
 
 // Definition of global variables
 HWND g_hWnd = NULL;

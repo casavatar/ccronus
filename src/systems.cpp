@@ -319,12 +319,23 @@ POINT MomentumSystem::getOptimalDirection(POINT targetDirection) {
 void MomentumSystem::setLastDirection(POINT direction) { state.lastDirection = direction; }
 
 // --- Implementación de VisualFeedbackSystem ---
-void VisualFeedbackSystem::startMovement(const std::string& name, int duration) { logMessage("Starting: " + name); feedback.currentMovement = name; }
-void VisualFeedbackSystem::updateProgress(int percent) {
-    if(percent % 25 == 0) logMessage(feedback.currentMovement + "..." + std::to_string(percent) + "%");
+void VisualFeedbackSystem::startMovement(const std::string& name, int duration) {
+    (void)duration; // FIX: Mark parameter as intentionally unused to prevent warning.
+    logMessage("Starting: " + name);
+    feedback.currentMovement = name;
 }
-void VisualFeedbackSystem::finishMovement(bool success) { logMessage("Finished: " + feedback.currentMovement); }
-void VisualFeedbackSystem::logDirectionalHint(const std::string& dir, const std::string& effect) { logMessage(dir + " -> " + effect); }
+void VisualFeedbackSystem::updateProgress(int percent) {
+    if(percent % 25 == 0) {
+        logMessage(feedback.currentMovement + "..." + std::to_string(percent) + "%");
+    }
+}
+void VisualFeedbackSystem::finishMovement(bool success) {
+    (void)success; // FIX: Mark parameter as intentionally unused to prevent warning.
+    logMessage("Finished: " + feedback.currentMovement);
+}
+void VisualFeedbackSystem::logDirectionalHint(const std::string& dir, const std::string& effect) {
+    logMessage(dir + " -> " + effect);
+}
 
 // --- Implementación de FluidMovementSystem ---
 POINT FluidMovementSystem::interpolateCubicBezier(const BezierCurve& curve, double t) {

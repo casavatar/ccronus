@@ -4,74 +4,57 @@
     "monitor_height": 1080
   },
   "keybindings": {
-    "exit": "Ctrl+Q",
+    "exit": "Escape",
     "smart_sprint_left": "Alt+A",
     "smart_sprint_right": "Alt+D",
-    "predictive_slide": "C",
+    "predictive_slide": "Alt+C",
+    "contextual_movement_assist": "Alt+Space",
     "dive_back": "Alt+S",
-    "corner_bounce_left": "Alt+Q",
-    "corner_bounce_right": "Alt+E",
-    "cutback": "Alt+W",
-    "dropshot_supine_slide": "Mouse4",
-    "slide_cancel_directional": "Alt+Mouse4",
-    "dive_directional_intelligent": "Mouse5",
-    "omnidirectional_slide": "Alt+Mouse5",
-    "movement_test": "Ctrl+T"
+    "corner_bounce_left": "Mouse4",
+    "corner_bounce_right": "Mouse5",
+    "cutback": "Alt+X",
+    "dropshot_supine_slide": "Ctrl+C",
+    "slide_cancel_directional": "Ctrl+Shift+C",
+    "dive_directional_intelligent": "Ctrl+Alt+S",
+    "omnidirectional_slide": "Ctrl+Alt+C",
+    "movement_test": "F10"
   },
   "weapon_profiles": [
     {
-      "name": "AR_Professional",
+      "name": "Controlled AR",
       "fire_mode": "Controlled",
-      "recoil_pattern": [ 8, 8, 7, 7, 6, 6, 5, 5, 2, 2 ],
-      "fire_delay_base": 120,
-      "fire_delay_variance": 7,
-      "pid": { "kp": 0.26, "ki": 0.006, "kd": 0.13 },
+      "recoil_pattern": [8, 8, 9, 9, 10, 10, 11],
+      "fire_delay_base": 60,
+      "fire_delay_variance": 10,
+      "pid": { "kp": 0.7, "ki": 0.25, "kd": 0.18 },
       "smoothing_factor": 0.85
     },
     {
-      "name": "SMG_Competitive",
-      "fire_mode": "Controlled",
-      "recoil_pattern": [ 3, 3, 2, 2, 1, 1, 1, 0 ],
-      "fire_delay_base": 90,
-      "fire_delay_variance": 5,
-      "pid": { "kp": 0.23, "ki": 0.005, "kd": 0.11 },
-      "smoothing_factor": 0.80
-    },
-    {
-        "name": "LMG_Balanced",
-        "fire_mode": "Controlled",
-        "recoil_pattern": [ 10, 9, 8, 8, 7, 7, 6, 6, 5, 5 ],
-        "fire_delay_base": 150,
-        "fire_delay_variance": 12,
-        "pid": { "kp": 0.30, "ki": 0.007, "kd": 0.15 },
-        "smoothing_factor": 0.90
-    },
-    {
-        "name": "Sniper_Precision",
-        "fire_mode": "Single",
-        "recoil_pattern": [ 0 ],
-        "fire_delay_base": 0,
-        "fire_delay_variance": 0,
-        "pid": { "kp": 0.35, "ki": 0.008, "kd": 0.18 },
-        "smoothing_factor": 0.95
-    },
-    {
-        "name": "Tactical_Fast",
-        "fire_mode": "Controlled",
-        "recoil_pattern": [ 6, 6, 5, 5, 5, 4 ],
-        "fire_delay_base": 60,
-        "fire_delay_variance": 4,
-        "pid": { "kp": 0.20, "ki": 0.004, "kd": 0.09 },
-        "smoothing_factor": 0.75
-    },
-    {
-      "name": "Pistol_RapidFire",
+      "name": "Rapid SMG",
       "fire_mode": "Rapid",
-      "recoil_pattern": [ 1, 1, 0, 0 ],
+      "recoil_pattern": [5, 6, 5, 7, 6, 8, 7],
       "fire_delay_base": 15,
-      "fire_delay_variance": 3,
-      "pid": { "kp": 0.18, "ki": 0.003, "kd": 0.08 },
-      "smoothing_factor": 0.70
+      "fire_delay_variance": 5,
+      "pid": { "kp": 0.6, "ki": 0.2, "kd": 0.15 },
+      "smoothing_factor": 0.9
+    },
+    {
+      "name": "Tactical AR",
+      "fire_mode": "Tactical",
+      "recoil_pattern": [9, 10, 11, 10, 12, 11, 13],
+      "fire_delay_base": 45,
+      "fire_delay_variance": 8,
+      "pid": { "kp": 0.65, "ki": 0.22, "kd": 0.17 },
+      "smoothing_factor": 0.88
+    },
+    {
+      "name": "Single-Fire Pistol",
+      "fire_mode": "Single",
+      "recoil_pattern": [1],
+      "fire_delay_base": 0,
+      "fire_delay_variance": 0,
+      "pid": { "kp": 0.5, "ki": 0.1, "kd": 0.1 },
+      "smoothing_factor": 0.95
     }
   ]
 }

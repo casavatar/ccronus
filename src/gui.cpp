@@ -1,10 +1,10 @@
 // description: This code implements a GUI for a game assist tool, allowing users to toggle assists, view logs, and manage profiles. It uses Win32 API for the GUI and handles input events.
 // It includes a logging mechanism to display messages in a list box and provides functionality to switch weapon profiles. The GUI is designed to be responsive and user-friendly, with real-time updates based on user interactions and system states.
-// 
+//
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 1.0.0
-// date: 2025-06-25
+// version: 1.2.0
+// date: 2025-06-26
 // project: Tactical Aim Assist
 
 #include "gui.h"
@@ -12,7 +12,6 @@
 #include "input.h"
 #include "profiles.h"
 #include "systems.h"
-#include "audio_system.h"
 #include <string>
 #include <deque>
 #include <mutex>
@@ -24,19 +23,22 @@
 #include <iostream>
 
 // --- GUI Specific Globals & Defines ---
-#define ID_LISTBOX 1001 // New ID for the list box
-#define ID_STATUS_LABEL 1002 // New ID for the status label
-#define ID_PROFILE_LABEL 1003 // New ID for the profile label
-#define ID_TOGGLE_BUTTON 1004 // New ID for the toggle button
-#define ID_ANALYTICS_LABEL 1005 // New ID for the analytics label
+#define ID_LISTBOX 1001
+#define ID_STATUS_LABEL 1002
+#define ID_PROFILE_LABEL 1003
+#define ID_TOGGLE_BUTTON 1004
+#define ID_ANALYTICS_LABEL 1005
 #define ID_AUDIO_ALERT_LABEL 1006 // New ID for the audio alert label
-#define WM_LOG_MESSAGE (WM_USER + 1) // Custom message for logging
+#define WM_LOG_MESSAGE (WM_USER + 1)
 
-HWND hListBox = NULL;
-HWND hStatusLabel = NULL;
-HWND hProfileLabel = NULL;
-HWND hToggleButton = NULL;
-HWND hAnalyticsLabel = NULL;
+// --- FIX: Declare GUI handles in the global scope of the file ---
+HWND hListBox = NULL; // List box for displaying logs
+HWND hStatusLabel = NULL; // Status label for the current state of the application
+HWND hProfileLabel = NULL; // Profile label for current weapon profile
+HWND hToggleButton = NULL; // Toggle button for assists
+HWND hAnalyticsLabel = NULL; // Analytics label for performance metrics
+HWND hAudioAlertLabel = NULL; // New handle for the audio alert label
+
 std::mutex logMutex;
 std::deque<std::string> logQueue;
 std::atomic<bool> guiReady(false);
@@ -46,12 +48,12 @@ void logMessage(const std::string& message) {
     auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
     std::tm tm_buf;
     localtime_s(&tm_buf, &t);
-    
+
     std::ostringstream oss;
     oss << "[" << std::put_time(&tm_buf, "%H:%M:%S") << "] " << message;
-    
+
     std::string timestampedMsg = oss.str();
-    
+
     std::cout << timestampedMsg << std::endl;
 
     {
@@ -61,7 +63,7 @@ void logMessage(const std::string& message) {
             logQueue.pop_front();
         }
     }
-    
+
     if (guiReady.load() && g_hWnd) {
         PostMessage(g_hWnd, WM_LOG_MESSAGE, 0, 0);
     }
@@ -87,12 +89,12 @@ LRESULT CALLBACK EnhancedWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 
             // --- Font Setup ---
             HFONT hFont = CreateFontW(14,0,0,0,FW_NORMAL,0,0,0,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH | FF_SWISS, L"Arial");
-            SendMessage(hListBox, WM_SETFONT, (WPARAM)hFont, TRUE); // Set font for list box
-            SendMessage(hStatusLabel, WM_SETFONT, (WPARAM)hFont, TRUE); // Set font for status label
-            SendMessage(hProfileLabel, WM_SETFONT, (WPARAM)hFont, TRUE); // Set font for profile label
-            SendMessage(hToggleButton, WM_SETFONT, (WPARAM)hFont, TRUE); // Set font for toggle button
-            SendMessage(hAnalyticsLabel, WM_SETFONT, (WPARAM)hFont, TRUE); // Set font for analytics label
-            SendMessage(hAudioAlertLabel, WM_SETFONT, (WPARAM)hFont, TRUE); // Set font for new label
+            SendMessage(hListBox, WM_SETFONT, (WPARAM)hFont, TRUE);
+            SendMessage(hStatusLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
+            SendMessage(hProfileLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
+            SendMessage(hToggleButton, WM_SETFONT, (WPARAM)hFont, TRUE);
+            SendMessage(hAnalyticsLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
+            SendMessage(hAudioAlertLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
             
             guiReady = true;
             break;
@@ -172,7 +174,6 @@ void updateProfileLabel() {
     }
 }
 
-// Function to update the analytics label with performance metrics
 void updateAnalyticsLabel() {
     if (hAnalyticsLabel && guiReady.load() && g_predictiveAim && g_performanceOpt) {
         std::ostringstream analytics;
