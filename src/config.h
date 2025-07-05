@@ -1,29 +1,9 @@
-// Project structure: The project is organized with a src directory for source files and a config.h header file for configuration settings.
-// The src directory contains various source files that implement the functionality of the Tactical Aim Assist project.
-// The config.h file defines keybindings and provides a function to load configuration settings from a file.
-// This structure allows for modular development and easy maintenance of the codebase.
-//
-// Keybindings configuration
-// The config.h file defines a structure for keybindings used in the Tactical Aim Assist project.
-// It includes various key actions such as exit, smart sprint, predictive slide, dive back, corner bounce, cutback, dropshot, slide cancel, dive directional, omnidirectional slide, and movement test.
-// Each action has a virtual key code (vk) and a modifier key (mod) associated with it.
-// The g_keybindings global variable holds the current keybindings configuration.
-// The loadConfiguration function is used to load keybindings from a specified configuration file.
-// The configuration file is expected to be in a specific format, allowing users to customize their keybindings for the Tactical Aim Assist project.
-// The keybindings structure is designed to be easily extensible, allowing for future additions or modifications to the key actions.
-// The project uses the C++17 standard and is developed with a focus on performance and user customization.
-// 
-// This file is distributed under the GNU General Public License v3.0.
-// You can redistribute it and/or modify it under the terms of the GPL v3.0.
-// See the LICENSE file for more details.
-// src/config.h
-//
 // description: This header file defines keybindings for the Tactical Aim Assist project.
-// It includes a structure for keybindings and a function to load configuration settings from a file.   
+// It includes a structure for keybindings and a function to load configuration settings from a file.
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 1.0.0
-// date: 2025-06-25
+// version: 1.3.0
+// date: 2025-06-26
 // project: Tactical Aim Assist
 
 #pragma once
@@ -57,6 +37,8 @@ struct Keybindings {
     int omnidirectional_slide_mod;
     int movement_test_vk;
     int movement_test_mod;
+    int contextual_movement_assist_vk;
+    int contextual_movement_assist_mod;
 };
 
 extern Keybindings g_keybindings;

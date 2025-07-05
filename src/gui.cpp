@@ -23,13 +23,14 @@
 #include <iostream>
 
 // --- GUI Specific Globals & Defines ---
-#define ID_LISTBOX 1001
-#define ID_STATUS_LABEL 1002
-#define ID_PROFILE_LABEL 1003
-#define ID_TOGGLE_BUTTON 1004
-#define ID_ANALYTICS_LABEL 1005
+#define ID_LISTBOX 1001 // ID for the list box
+#define ID_STATUS_LABEL 1002 // ID for the status label
+#define ID_PROFILE_LABEL 1003 // ID for the profile label
+#define ID_TOGGLE_BUTTON 1004 // ID for the toggle button
+#define ID_ANALYTICS_LABEL 1005 // ID for the analytics label
 #define ID_AUDIO_ALERT_LABEL 1006 // New ID for the audio alert label
-#define WM_LOG_MESSAGE (WM_USER + 1)
+#define WM_LOG_MESSAGE (WM_USER + 1) // Custom message for log updates
+#define ID_MOVEMENT_STATUS_LABEL 1007 // New ID for movement status label
 
 // --- FIX: Declare GUI handles in the global scope of the file ---
 HWND hListBox = NULL; // List box for displaying logs
@@ -38,6 +39,7 @@ HWND hProfileLabel = NULL; // Profile label for current weapon profile
 HWND hToggleButton = NULL; // Toggle button for assists
 HWND hAnalyticsLabel = NULL; // Analytics label for performance metrics
 HWND hAudioAlertLabel = NULL; // New handle for the audio alert label
+HWND hMovementStatusLabel = NULL; // New handle for the movement status label
 
 std::mutex logMutex;
 std::deque<std::string> logQueue;
@@ -83,9 +85,10 @@ LRESULT CALLBACK EnhancedWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
             hProfileLabel = CreateWindowW(L"STATIC", L"Profile: Loading...", WS_CHILD | WS_VISIBLE, 220, 10, 250, 20, hwnd, (HMENU)ID_PROFILE_LABEL, NULL, NULL);
             hToggleButton = CreateWindowW(L"BUTTON", L"Assists: ON", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 10, 40, 100, 25, hwnd, (HMENU)ID_TOGGLE_BUTTON, NULL, NULL);
             hAnalyticsLabel = CreateWindowW(L"STATIC", L"Analytics: Loading...", WS_CHILD | WS_VISIBLE, 120, 40, 350, 25, hwnd, (HMENU)ID_ANALYTICS_LABEL, NULL, NULL);
-            
             // New Audio Alert Label
             hAudioAlertLabel = CreateWindowW(L"STATIC", L"Audio: OK", WS_CHILD | WS_VISIBLE, 10, 75, 460, 25, hwnd, (HMENU)ID_AUDIO_ALERT_LABEL, NULL, NULL);
+            // New Movement Status Label
+            hMovementStatusLabel = CreateWindowW(L"STATIC", L"Movement: Idle", WS_CHILD | WS_VISIBLE, 10, 90, 460, 25, hwnd, (HMENU)ID_MOVEMENT_STATUS_LABEL, NULL, NULL);
 
             // --- Font Setup ---
             HFONT hFont = CreateFontW(14,0,0,0,FW_NORMAL,0,0,0,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH | FF_SWISS, L"Arial");
@@ -95,6 +98,7 @@ LRESULT CALLBACK EnhancedWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
             SendMessage(hToggleButton, WM_SETFONT, (WPARAM)hFont, TRUE);
             SendMessage(hAnalyticsLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
             SendMessage(hAudioAlertLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
+            SendMessage(hMovementStatusLabel, WM_SETFONT, (WPARAM)hFont, TRUE); // Set font
             
             guiReady = true;
             break;
@@ -199,5 +203,12 @@ void updateAnalyticsLabel() {
 void updateAudioAlertLabel(const std::string& alert_text) {
     if (hAudioAlertLabel && guiReady.load()) {
         SetWindowTextA(hAudioAlertLabel, alert_text.c_str());
+    }
+}
+
+// New function to update the movement status label
+void updateMovementStatusLabel(const std::string& status_text) {
+    if (hMovementStatusLabel && guiReady.load()) {
+        SetWindowTextA(hMovementStatusLabel, status_text.c_str());
     }
 }

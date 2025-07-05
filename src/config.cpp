@@ -1,13 +1,9 @@
-// description: This code is part of a C++ project that loads configuration settings from a JSON file, including keybindings and weapon profiles. It uses the nlohmann/json library for JSON parsing and Windows API for message boxes.
-// The configuration file is expected to contain settings for monitor dimensions, keybindings for various actions, and weapon profiles with specific attributes. The code includes error handling for file operations and JSON parsing errors.
-// It also provides a function to parse keybindings from string representations like "Ctrl+A" or "Alt+Mouse4" into virtual key codes and modifier flags.
-// This allows for flexible and customizable keybindings for the Tactical Aim Assist project.
-// src/config.cpp
-//
+// description: This code is part of a C++ project that loads configuration settings from a JSON file, including keybindings and weapon profiles.
+// It uses the nlohmann/json library for JSON parsing and Windows API for message boxes.
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 1.0.0
-// date: 2025-06-25
+// version: 1.3.0
+// date: 2025-06-26
 // project: Tactical Aim Assist
 
 #include "config.h"
@@ -48,8 +44,10 @@ void parseKeybinding(const std::string& keyStr, int& vk, int& mod) {
         vk = VK_XBUTTON2;
     } else if (key == "Escape") {
         vk = VK_ESCAPE;
+    } else if (key == "Space") { // Added Spacebar support
+        vk = VK_SPACE;
     }
-    // Add more special keys if needed (e.g., "Space", "Enter")
+    // Add more special keys if needed (e.g., "Enter")
 }
 
 bool loadConfiguration(const std::string& filename) {
@@ -82,6 +80,9 @@ bool loadConfiguration(const std::string& filename) {
         parseKeybinding(data["keybindings"]["dive_directional_intelligent"], g_keybindings.dive_directional_intelligent_vk, g_keybindings.dive_directional_intelligent_mod);
         parseKeybinding(data["keybindings"]["omnidirectional_slide"], g_keybindings.omnidirectional_slide_vk, g_keybindings.omnidirectional_slide_mod);
         parseKeybinding(data["keybindings"]["movement_test"], g_keybindings.movement_test_vk, g_keybindings.movement_test_mod);
+        
+        // FIX: Added parsing for the new contextual movement keybinding.
+        parseKeybinding(data["keybindings"]["contextual_movement_assist"], g_keybindings.contextual_movement_assist_vk, g_keybindings.contextual_movement_assist_mod);
 
         // Load weapon profiles
         g_weaponProfiles.clear();

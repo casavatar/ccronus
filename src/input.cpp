@@ -15,13 +15,16 @@
 #include "systems.h"
 
 // External state variables (defined in movements.cpp)
-extern std::atomic<bool> isAimingDownSights;
-extern std::atomic<bool> inCombatMode;
-extern std::atomic<bool> isExecutingMovement;
-extern std::atomic<bool> isControlledAutoFiring;
-extern std::atomic<bool> isRapidFiring;
+extern std::atomic<bool> isAimingDownSights; // Flag to indicate if the user is aiming down sights
+extern std::atomic<bool> inCombatMode; // Flag to indicate if the user is in combat mode
+extern std::atomic<bool> isExecutingMovement; // Flag to indicate if a movement is currently being executed
+extern std::atomic<bool> isControlledAutoFiring; // Flag to indicate if controlled automatic firing is active
+extern std::atomic<bool> isRapidFiring; // Flag to indicate if rapid firing is active
 extern std::atomic<bool> isTacticalFiring; // Extern for the new Tactical fire mode
+extern std::atomic<bool> isSprintingForward; // Flag to indicate if the user is sprinting forward
+extern std::chrono::steady_clock::time_point g_sprintStartTime; // Timestamp for when the sprint started
 
+// Function to handle raw mouse input
 void HandleRawMouseInput(const RAWMOUSE& rawMouse) {
     if (g_performanceOpt) g_performanceOpt->registerInputEvent();
     
@@ -42,14 +45,14 @@ void HandleRawMouseInput(const RAWMOUSE& rawMouse) {
         isAimingDownSights = false;
     }
 
-    // --- LÓGICA DE DISPARO ---
+    // Shooting logic
     if (rawMouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) {
         inCombatMode = true;
-        handleEnhancedKeyPress(VK_LBUTTON); // Inicia el modo de disparo
+        handleEnhancedKeyPress(VK_LBUTTON); // Start firing mode
     } 
     else if (rawMouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) {
         inCombatMode = false;
-        // Detiene de forma centralizada cualquier modo de disparo automático
+        // Stop all automatic firing modes centrally
         isControlledAutoFiring = false;
         isRapidFiring = false;
         isTacticalFiring = false; // Stop tactical firing when left mouse is released
@@ -58,8 +61,23 @@ void HandleRawMouseInput(const RAWMOUSE& rawMouse) {
 
 void HandleRawKeyboardInput(const RAWKEYBOARD& rawKeyboard) {
     if (g_performanceOpt) g_performanceOpt->registerInputEvent();
-    
-    if (!(rawKeyboard.Flags & RI_KEY_BREAK)) {
+
+    // --- Contextual Movement Logic ---
+    // Check for combined W + Shift press to detect forward sprint
+    if (rawKeyboard.VKey == 'W' && (GetAsyncKeyState(VK_LSHIFT) & 0x8000)) {
+        if (!isSprintingForward.load()) {
+            isSprintingForward = true;
+            g_sprintStartTime = std::chrono::steady_clock::now();
+        }
+    }
+
+    if (rawKeyboard.Flags & RI_KEY_BREAK) {
+        // Key up
+        if (rawKeyboard.VKey == 'W' || rawKeyboard.VKey == VK_LSHIFT) {
+            isSprintingForward = false;
+        }
+    } else {
+        // Key down
         handleEnhancedKeyPress(rawKeyboard.VKey);
     }
 }
@@ -73,8 +91,6 @@ void handleEnhancedKeyPress(int vk) {
     int current_mod = 0;
     if(ctrlPressed) current_mod = VK_CONTROL;
     else if(altPressed) current_mod = VK_LMENU;
-
-    // ... (Manejo de teclas de sistema y movimiento sin cambios) ...
 
     // --- REFACTORED FIRING LOGIC ---
     if (vk == VK_LBUTTON && current_mod == 0) {
@@ -94,7 +110,19 @@ void handleEnhancedKeyPress(int vk) {
         }
         return;
     }
-    
+
+    if (vk == g_keybindings.contextual_movement_assist_vk && current_mod == g_keybindings.contextual_movement_assist_mod) {
+        auto time_since_sprint_start = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - g_sprintStartTime
+        ).count();
+        
+        // Only trigger if sprinting forward for at least 500ms
+        if (isSprintingForward.load() && time_since_sprint_start > 500) {
+            g_performanceOpt->addTask(executeContextualStrafeJump);
+        }
+        return; // Prevent other keybinds from firing
+    }
+        
     // Asignaciones de movimiento al pool de hilos
     if (vk == g_keybindings.smart_sprint_left_vk && current_mod == g_keybindings.smart_sprint_left_mod) g_performanceOpt->addTask([]{ executeSmartDiagonalSprint(true); });
     else if (vk == g_keybindings.smart_sprint_right_vk && current_mod == g_keybindings.smart_sprint_right_mod) g_performanceOpt->addTask([]{ executeSmartDiagonalSprint(false); });

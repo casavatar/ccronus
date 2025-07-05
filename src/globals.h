@@ -3,7 +3,7 @@
 // It also provides a logging function for debugging purposes.
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 1.1.0
+// version: 1.2.1
 // date: 2025-06-26
 // project: Tactical Aim Assist
 
@@ -15,17 +15,18 @@
 #include <memory>
 #include <atomic>
 #include <random>
+#include <chrono> // <-- FIX: Include the <chrono> header for time-related types.
 
 // Forward declarations to break circular dependencies
-class WeaponProfile; // Forward declaration for the weapon profile class
-class AntiDetectionSystem; // Forward declaration for the anti-detection system
-class PredictiveAimSystem; // Forward declaration for the predictive aim system
-class PerformanceOptimizer; // Forward declaration for the performance optimizer
-class AdaptiveSmoothingSystem; // Forward declaration for the adaptive smoothing system
-class MomentumSystem; // Forward declaration for the momentum system
-class VisualFeedbackSystem; // Forward declaration for the visual feedback system
-class TacticalPIDController; // Forward declaration for the Tactical PID controller
-class AudioManager; // Forward declaration for the new audio manager
+class WeaponProfile;
+class AntiDetectionSystem;
+class PredictiveAimSystem;
+class PerformanceOptimizer;
+class AdaptiveSmoothingSystem;
+class MomentumSystem;
+class VisualFeedbackSystem;
+class TacticalPIDController;
+class AudioManager;
 
 // --- Global Variables ---
 extern HWND g_hWnd;
@@ -42,17 +43,21 @@ extern int SCREEN_CENTER_Y;
 extern std::vector<WeaponProfile> g_weaponProfiles;
 extern std::atomic<int> g_activeProfileIndex;
 
+// Contextual Movement States
+extern std::atomic<bool> isSprintingForward;
+extern std::chrono::steady_clock::time_point g_sprintStartTime; // Tracks when sprint started
+
 // Systems
-extern std::unique_ptr<AntiDetectionSystem> g_antiDetection; // Anti-detection system to simulate human-like behavior
-extern std::unique_ptr<PredictiveAimSystem> g_predictiveAim; // Predictive aim system for target tracking
-extern std::unique_ptr<PerformanceOptimizer> g_performanceOpt; // Performance optimizer for managing system resources
-extern std::unique_ptr<AdaptiveSmoothingSystem> g_smoothingSystem; // Adaptive smoothing system for mouse movements
-extern std::unique_ptr<MomentumSystem> g_momentumSys; // Momentum system for movement optimization
-extern std::unique_ptr<VisualFeedbackSystem> g_feedbackSys; // Visual feedback system for user interaction
-extern std::unique_ptr<TacticalPIDController> g_pidX; // PID controllers for X and Y axes
-extern std::unique_ptr<TacticalPIDController> g_pidY; // PID controllers for X and Y axes
-extern std::unique_ptr<AudioManager> g_audioManager; // New audio manager
-extern std::atomic<bool> isTacticalFiring; // Flag to indicate if tactical firing is active
+extern std::unique_ptr<AntiDetectionSystem> g_antiDetection;
+extern std::unique_ptr<PredictiveAimSystem> g_predictiveAim;
+extern std::unique_ptr<PerformanceOptimizer> g_performanceOpt;
+extern std::unique_ptr<AdaptiveSmoothingSystem> g_smoothingSystem;
+extern std::unique_ptr<MomentumSystem> g_momentumSys;
+extern std::unique_ptr<VisualFeedbackSystem> g_feedbackSys;
+extern std::unique_ptr<TacticalPIDController> g_pidX;
+extern std::unique_ptr<TacticalPIDController> g_pidY;
+extern std::unique_ptr<AudioManager> g_audioManager;
+extern std::atomic<bool> isTacticalFiring;
 
 // Enhanced random number generation
 extern std::random_device rd;

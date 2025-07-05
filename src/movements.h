@@ -28,4 +28,5 @@ void executeDropShotSupineSlide();
 void executeSlideCancelDirectional();
 void executeDiveDirectionalIntelligent();
 void executeOmnidirectionalSlide();
+void executeContextualStrafeJump(); // New advanced movement assist
 void executeMovementTest();

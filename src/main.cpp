@@ -1,43 +1,45 @@
-// description: 
-//
+// description: Main entry point for the Tactical Aim Assist application.
+// Initializes all systems, manages threads, and handles the main application loop.
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 1.0.0
-// date: 2025-06-25
+// version: 2.7.1
+// date: 2025-06-26
 // project: Tactical Aim Assist
-//
 
-#include "globals.h" // Include the global header for shared variables and objects
-#include "config.h" // Include the configuration header for loading settings
-#include "gui.h" // Include the GUI header for the enhanced GUI thread
-#include "profiles.h" // Include the profiles header for weapon profiles
-#include "systems.h" // Include the systems header for system management 
-#include "audio_system.h" // Include the new audio system header
-#include <thread> // Include the thread library for multithreading support
-#include <iostream> // Include the iostream library for console output
-#include <sstream> // Include the sstream library for string stream operations
+#include "globals.h"
+#include "config.h"
+#include "gui.h"
+#include "profiles.h"
+#include "systems.h"
+#include "audio_system.h"
+#include <thread>
+#include <iostream>
+#include <sstream>
 
-// Initialize all systems
+// FIX: Add extern declaration for the global state variable to make it visible in this file.
+extern std::atomic<bool> isExecutingMovement;
+
 void initializeSystems() {
-    g_antiDetection = std::make_unique<AntiDetectionSystem>(); // Anti-detection system to simulate human-like behavior
-    g_predictiveAim = std::make_unique<PredictiveAimSystem>(); // Predictive aim system for target tracking
-    g_performanceOpt = std::make_unique<PerformanceOptimizer>(); // Performance optimizer for managing system resources
-    g_smoothingSystem = std::make_unique<AdaptiveSmoothingSystem>(); // Adaptive smoothing system for mouse movements
-    g_momentumSys = std::make_unique<MomentumSystem>(); // Momentum system for movement optimization
-    g_feedbackSys = std::make_unique<VisualFeedbackSystem>(); // Visual feedback system for user interaction
-    g_audioManager = std::make_unique<AudioManager>(44100, 512, 256); // Initialize the audio manager with sample rate, buffer size, and hop size
+    g_antiDetection = std::make_unique<AntiDetectionSystem>();
+    g_predictiveAim = std::make_unique<PredictiveAimSystem>();
+    g_performanceOpt = std::make_unique<PerformanceOptimizer>();
+    g_smoothingSystem = std::make_unique<AdaptiveSmoothingSystem>();
+    g_momentumSys = std::make_unique<MomentumSystem>();
+    g_feedbackSys = std::make_unique<VisualFeedbackSystem>();
+
+    g_audioManager = std::make_unique<AudioManager>(44100, 512);
 }
 
-// Load configuration from a file
 void macroLoop() {
     logMessage("Macro loop started. Waiting for input events...");
-    
+
     while (g_running.load()) {
         static auto lastAnalyticsUpdate = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
+
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastAnalyticsUpdate).count() > 100) {
             if (guiReady.load()) {
-                 g_performanceOpt->addTask(updateAnalyticsLabel);
+                 updateAnalyticsLabel();
             }
             if (g_audioManager) {
                 std::string alert = g_audioManager->getLatestAlert();
@@ -45,6 +47,21 @@ void macroLoop() {
                     updateAudioAlertLabel(alert);
                 }
             }
+            
+            // Update movement status label
+            if (isSprintingForward.load()) {
+                auto time_since_sprint_start = std::chrono::duration_cast<std::chrono::milliseconds>(now - g_sprintStartTime).count();
+                if (time_since_sprint_start > 500) {
+                    updateMovementStatusLabel("Movement: Strafe-Jump Ready");
+                } else {
+                    updateMovementStatusLabel("Movement: Sprinting...");
+                }
+            } else {
+                 if (!isExecutingMovement.load()) {
+                    updateMovementStatusLabel("Movement: Idle");
+                 }
+            }
+
             lastAnalyticsUpdate = now;
         }
 
@@ -53,16 +70,15 @@ void macroLoop() {
     logMessage("Macro loop finished.");
 }
 
-// Function to switch weapon profiles
 int main() {
     initializeSystems();
-    
+
     if (!loadConfiguration("config.json")) {
         return 1;
     }
-    
+
     logMessage("Configuration loaded.");
-    
+
     std::ostringstream systemInfo;
     systemInfo << "System: " << std::thread::hardware_concurrency() << " cores | "
                << "Monitor: " << MONITOR_WIDTH << "x" << MONITOR_HEIGHT;
@@ -78,30 +94,30 @@ int main() {
         MessageBoxW(NULL, L"No weapon profiles found in config.json!", L"Config Error", MB_OK | MB_ICONERROR);
         return 1;
     }
-    
+
     std::thread guiThread(enhancedGuiThread);
-    
-    // Wait for the GUI to be ready before proceeding
+
     while(!guiReady.load()) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
-    switchProfile(0); // Establish the initial profile and update the label
+    switchProfile(0);
 
-    // Start the audio manager after the GUI is ready
     if (g_audioManager) {
         g_audioManager->start();
     }
-    
+
     std::thread macroThread(macroLoop);
 
     logMessage("All threads started successfully.");
-    
+
     if(guiThread.joinable()) {
         guiThread.join();
     }
-    
-    g_running = false; // Make sure the macro loop ends
 
+    g_running = false;
+    if (g_audioManager) {
+        g_audioManager->stop();
+    }
     if(macroThread.joinable()) {
         macroThread.join();
     }

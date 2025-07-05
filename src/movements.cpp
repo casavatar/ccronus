@@ -1,8 +1,7 @@
 // description: Implements mouse and keyboard simulation functions, including fire modes and complex tactical movements for the game enhancement tool.
-//
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 1.1.0
+// version: 1.3.0
 // date: 2025-06-26
 // project: Tactical Aim Assist
 
@@ -16,16 +15,20 @@
 #include <algorithm>
 #include <vector>
 
-// Global state variables for movement and firing logic
-std::atomic<bool> isRapidFiring(false);
-std::atomic<bool> isExecutingMovement(false);
-std::atomic<bool> isAimingDownSights(false);
-std::atomic<bool> inCombatMode(false);
-std::atomic<bool> isControlledAutoFiring(false);
-extern std::atomic<bool> isTacticalFiring; // Extern for the new Tactical fire mode
-int recoilIndex = 0;
+// FIX: Removed the definitions of these variables. They are now only declared as extern
+// because their single definition resides in globals.cpp. This resolves the 'multiple definition' linker error.
+extern std::atomic<bool> isRapidFiring; // Indicates if the rapid firing mode is currently active, preventing overlapping actions
+extern std::atomic<bool> isControlledAutoFiring; // Indicates if the controlled automatic firing mode is currently active, preventing overlapping actions
+extern std::atomic<bool> isTacticalFiring; // Indicates if the tactical firing mode is currently active, preventing overlapping actions
 
-// --- Funciones de ayuda para entradas inteligentes ---
+// Global state variables for movement logic
+std::atomic<bool> isExecutingMovement(false); // Indicates if a movement action is currently being executed, preventing overlapping actions
+std::atomic<bool> isAimingDownSights(false); // Indicates if the player is currently aiming down sights, affecting movement and firing behavior
+std::atomic<bool> inCombatMode(false); // Indicates if the player is in combat mode, affecting movement and firing behavior
+
+int recoilIndex = 0; // Index for tracking recoil patterns in firing modes
+
+// Random number generator for smart randomization  
 int smartRandom(int base, int variance) {
     if (variance <= 0) return base;
     std::uniform_int_distribution<> dist(base, base + variance);
@@ -212,12 +215,12 @@ void predictiveMouseMove(int dx, int dy, int movementType) {
 }
 
 
-// --- Implementaciones de Modos de Disparo ---
-// ... (controlledAutomaticFire and enhancedIntelligentRapidFire functions without changes) ...
+// Controlled and Fast Fire Implementations
+// (Controlledautomaticfire and enhancedintelligentrapidfire Functions Without Changes)
 void controlledAutomaticFire() {
     bool expected = false;
-    // Si la variable ya es 'true' (la función ya está en ejecución), compare_exchange_strong devuelve 'false' y salimos.
-    // Si es 'false', la cambia a 'true' y devuelve 'true', permitiendo que la función continúe.
+    // If the variable is already 'True' (the function is already in execution), compare_exchange_strong returns 'false' and we leave.
+    // If it is 'false', it changes it to 'True' and returns 'True', allowing the function to continue.
     if (!isControlledAutoFiring.compare_exchange_strong(expected, true)) {
         return;
     }
@@ -262,7 +265,7 @@ void controlledAutomaticFire() {
 }
 
 void enhancedIntelligentRapidFire() {
-    // --- CORRECCIÓN AQUÍ: Guardia de entrada más robusta ---
+    // Atomic guard to ensure only one instance of the loop runs.
     bool expected = false;
     if (!isRapidFiring.compare_exchange_strong(expected, true)) {
         return;
@@ -348,7 +351,7 @@ void tacticalFire() {
     logMessage("Tactical Fire Inactive");
 }
 
-// --- Implementaciones de Movimientos Tácticos ---
+// Tactical movements implementations
 void executeSmartDiagonalSprint(bool leftDirection) {
     if (isExecutingMovement.exchange(true)) return;
     if (g_antiDetection) g_antiDetection->updateContext(AntiDetectionSystem::MOVEMENT);
@@ -636,6 +639,35 @@ void executeOmnidirectionalSlide() {
     }
     sprintInput.ki.dwFlags = KEYEVENTF_KEYUP; SendInput(1, &sprintInput, sizeof(INPUT));
     if (g_momentumSys) g_momentumSys->updateMovementState(false, false, false, false);
+    g_feedbackSys->finishMovement(true);
+    isExecutingMovement = false;
+}
+
+void executeContextualStrafeJump() {
+    if (isExecutingMovement.exchange(true)) return;
+    if (g_antiDetection) g_antiDetection->updateContext(AntiDetectionSystem::MOVEMENT);
+    g_feedbackSys->startMovement("Contextual Strafe-Jump", 1500);
+
+    bool strafe_left = true;
+    for (int i = 0; i < 5; ++i) { // Perform 5 jumps
+        // Strafe key
+        smartKey(strafe_left ? 'A' : 'D', 50);
+
+        // Jump
+        smartKey(VK_SPACE, 60);
+        g_feedbackSys->updateProgress((i + 1) * 20);
+
+        // Small mouse movement in the direction of the strafe to enhance the effect
+        int mouse_strafe = strafe_left ? smartRandom(-15, -10) : smartRandom(10, 15);
+        predictiveMouseMove(mouse_strafe, smartRandom(-5, 5), 3);
+
+        // Wait a bit before the next jump
+        std::this_thread::sleep_for(std::chrono::milliseconds(smartRandom(200, 50)));
+
+        // Alternate strafe direction
+        strafe_left = !strafe_left;
+    }
+
     g_feedbackSys->finishMovement(true);
     isExecutingMovement = false;
 }

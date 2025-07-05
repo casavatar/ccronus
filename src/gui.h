@@ -15,5 +15,6 @@ void enhancedGuiThread(); // Function to run the enhanced GUI thread
 void updateProfileLabel(); // Function to update the profile label in the GUI
 void updateAnalyticsLabel(); // Function to update the analytics label in the GUI
 void updateAudioAlertLabel(const std::string& alert_text); // New function for audio alerts
+void updateMovementStatusLabel(const std::string& status_text); // New movement status label function
 
-extern std::atomic<bool> guiReady;
+extern std::atomic<bool> guiReady; // Atomic variable to indicate if the GUI is ready

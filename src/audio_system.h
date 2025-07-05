@@ -1,9 +1,8 @@
-// description: Defines the audio analysis system using PortAudio and Aubio.
-// It includes a lock-free ring buffer for real-time audio data transfer
-// between a capture thread and an analysis thread.
+// description: Defines the audio analysis system using PortAudio and FFTW.
+// It performs real-time FFT on audio data to detect sound onsets (e.g., gunshots, footsteps).
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 1.2.4
+// version: 2.6.0
 // date: 2025-06-26
 // project: Tactical Aim Assist
 
@@ -14,14 +13,20 @@
 #include <thread>
 #include <string>
 #include <memory>
+#include <complex>
 
-// FIX: Include the actual library headers instead of forward declaring.
-// This ensures we have the correct and complete type definitions, resolving
-// the 'conflicting declaration' errors.
-#include <../portaudio/include/portaudio.h> // Include PortAudio header
-#include <../aubio/src/aubio.h> // Include Aubio header
+#include <portaudio.h>
+#include <fftw3.h>
 
-// (The LockFreeRingBuffer class remains unchanged)
+// FIX: Wrap the C-style array 'fftwf_complex' in a C++ struct.
+// std::vector cannot correctly handle elements that are raw C-style arrays.
+// This struct makes the type compatible with standard library containers.
+struct Complex {
+    float real;
+    float imag;
+};
+
+// LockFreeRingBuffer class remains the same
 template<typename T>
 class LockFreeRingBuffer {
 public:
@@ -72,10 +77,9 @@ private:
     alignas(64) std::atomic<size_t> m_read_index{0};
 };
 
-
 class AudioManager {
 public:
-    AudioManager(uint32_t sample_rate, uint32_t buffer_size, uint32_t hop_size);
+    AudioManager(uint32_t sample_rate, uint32_t buffer_size);
     ~AudioManager();
 
     bool start();
@@ -83,22 +87,23 @@ public:
     std::string getLatestAlert();
 
 private:
-    // FIX: Corrected the callback signature to exactly match PaStreamCallback.
-    // This resolves the 'invalid conversion' error when passing it to Pa_OpenStream.
     static int paCallback(const void* inputBuffer, void* outputBuffer,
                           unsigned long framesPerBuffer,
                           const PaStreamCallbackTimeInfo* timeInfo,
                           PaStreamCallbackFlags statusFlags,
                           void* userData);
-
+    
     void analysisLoop();
+    void detectOnset(const std::vector<float>& audio_chunk);
 
     PaStream* m_stream = nullptr;
-    aubio_onset_t* m_onset_obj = nullptr;
     
+    fftwf_plan m_fft_plan;
+    std::vector<float> m_fft_in;
+    std::vector<Complex> m_fft_out;
+
     const uint32_t m_sample_rate;
     const uint32_t m_buffer_size;
-    const uint32_t m_hop_size;
     
     LockFreeRingBuffer<float> m_ring_buffer;
     
@@ -106,4 +111,7 @@ private:
     std::atomic<bool> m_running{false};
     
     std::atomic<std::string*> m_last_alert{nullptr};
+
+    float m_previous_energy = 0.0f;
+    float m_onset_threshold = 1.5f;
 };
