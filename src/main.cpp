@@ -32,33 +32,33 @@ void initializeSystems() {
 
 void macroLoop() {
     logMessage("Macro loop started. Waiting for input events...");
-
+    
     while (g_running.load()) {
         static auto lastAnalyticsUpdate = std::chrono::steady_clock::now();
         auto now = std::chrono::steady_clock::now();
 
         if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastAnalyticsUpdate).count() > 100) {
             if (guiReady.load()) {
-                 updateAnalyticsLabel();
+                 // --- FIX: Use thread-safe message posting for GUI updates ---
+                 postUpdateAnalytics();
             }
             if (g_audioManager) {
                 std::string alert = g_audioManager->getLatestAlert();
                 if (!alert.empty()) {
-                    updateAudioAlertLabel(alert);
+                    postUpdateAudioAlert(alert);
                 }
             }
             
-            // Update movement status label
             if (isSprintingForward.load()) {
                 auto time_since_sprint_start = std::chrono::duration_cast<std::chrono::milliseconds>(now - g_sprintStartTime).count();
                 if (time_since_sprint_start > 500) {
-                    updateMovementStatusLabel("Movement: Strafe-Jump Ready");
+                    postUpdateMovementStatus("Movement: Strafe-Jump Ready");
                 } else {
-                    updateMovementStatusLabel("Movement: Sprinting...");
+                    postUpdateMovementStatus("Movement: Sprinting...");
                 }
             } else {
                  if (!isExecutingMovement.load()) {
-                    updateMovementStatusLabel("Movement: Idle");
+                    postUpdateMovementStatus("Movement: Idle");
                  }
             }
 

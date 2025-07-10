@@ -1,8 +1,7 @@
 // description: This code handles raw mouse and keyboard input for a game, managing actions like aiming, firing, and tactical movements based on keybindings and weapon profiles.
-// It uses atomic variables for thread-safe state management and integrates with a performance optimization system to execute tasks based on user input.
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 1.1.0
+// version: 2.8.1
 // date: 2025-06-26
 // project: Tactical Aim Assist
 
@@ -14,21 +13,27 @@
 #include "profiles.h"
 #include "systems.h"
 
-// External state variables (defined in movements.cpp)
-extern std::atomic<bool> isAimingDownSights; // Flag to indicate if the user is aiming down sights
-extern std::atomic<bool> inCombatMode; // Flag to indicate if the user is in combat mode
-extern std::atomic<bool> isExecutingMovement; // Flag to indicate if a movement is currently being executed
-extern std::atomic<bool> isControlledAutoFiring; // Flag to indicate if controlled automatic firing is active
-extern std::atomic<bool> isRapidFiring; // Flag to indicate if rapid firing is active
-extern std::atomic<bool> isTacticalFiring; // Extern for the new Tactical fire mode
-extern std::atomic<bool> isSprintingForward; // Flag to indicate if the user is sprinting forward
-extern std::chrono::steady_clock::time_point g_sprintStartTime; // Timestamp for when the sprint started
+// Extern state variables
+extern std::atomic<bool> isAimingDownSights; // Indicates if the player is aiming down sights
+extern std::atomic<bool> inCombatMode; // Indicates if the player is in combat mode 
+extern std::atomic<bool> isExecutingMovement; // Indicates if a movement action is currently being executed
+extern std::atomic<bool> isControlledAutoFiring; // Indicates if controlled auto-firing is active
+extern std::atomic<bool> isRapidFiring; // Indicates if rapid firing is active
+extern std::atomic<bool> isTacticalFiring; // Indicates if tactical firing is active
+extern std::atomic<bool> g_isSimulatingInput; // Indicates if input simulation is active
+extern std::atomic<bool> isSprintingForward; // Indicates if the player is sprinting forward
+extern std::atomic<PlayerMovementState> g_playerMovementState; // Player movement state
+// Extern performance optimizer
+extern std::chrono::steady_clock::time_point g_sprintStartTime; // Time when sprint started
 
-// Function to handle raw mouse input
 void HandleRawMouseInput(const RAWMOUSE& rawMouse) {
+    if (g_isSimulatingInput.load()) {
+        return;
+    }
+
     if (g_performanceOpt) g_performanceOpt->registerInputEvent();
     
-    // --- LÓGICA DE APUNTADO (ADS) ---
+    // logic for ads (aiming down sights)
     if (rawMouse.usButtonFlags & RI_MOUSE_RIGHT_BUTTON_DOWN) {
         isAimingDownSights = true;
         if (g_assistEnabled.load()) {
@@ -45,39 +50,40 @@ void HandleRawMouseInput(const RAWMOUSE& rawMouse) {
         isAimingDownSights = false;
     }
 
-    // Shooting logic
+    // logic for combat mode and firing
     if (rawMouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_DOWN) {
         inCombatMode = true;
-        handleEnhancedKeyPress(VK_LBUTTON); // Start firing mode
+        handleEnhancedKeyPress(VK_LBUTTON);
     } 
     else if (rawMouse.usButtonFlags & RI_MOUSE_LEFT_BUTTON_UP) {
         inCombatMode = false;
-        // Stop all automatic firing modes centrally
         isControlledAutoFiring = false;
         isRapidFiring = false;
-        isTacticalFiring = false; // Stop tactical firing when left mouse is released
+        isTacticalFiring = false;
     }
 }
 
 void HandleRawKeyboardInput(const RAWKEYBOARD& rawKeyboard) {
     if (g_performanceOpt) g_performanceOpt->registerInputEvent();
 
-    // --- Contextual Movement Logic ---
-    // Check for combined W + Shift press to detect forward sprint
-    if (rawKeyboard.VKey == 'W' && (GetAsyncKeyState(VK_LSHIFT) & 0x8000)) {
-        if (!isSprintingForward.load()) {
-            isSprintingForward = true;
-            g_sprintStartTime = std::chrono::steady_clock::now();
-        }
+    // --- NEW: Player State Detection Logic ---
+    bool w_down = GetAsyncKeyState('W') & 0x8000;
+    bool a_down = GetAsyncKeyState('A') & 0x8000;
+    bool s_down = GetAsyncKeyState('S') & 0x8000;
+    bool d_down = GetAsyncKeyState('D') & 0x8000;
+    bool shift_down = GetAsyncKeyState(VK_LSHIFT) & 0x8000;
+
+    if (w_down && shift_down) {
+        g_playerMovementState = PlayerMovementState::Sprinting;
+    } else if (w_down || s_down) {
+        g_playerMovementState = PlayerMovementState::Walking;
+    } else if (a_down || d_down) {
+        g_playerMovementState = PlayerMovementState::Strafing;
+    } else {
+        g_playerMovementState = PlayerMovementState::Stationary;
     }
 
-    if (rawKeyboard.Flags & RI_KEY_BREAK) {
-        // Key up
-        if (rawKeyboard.VKey == 'W' || rawKeyboard.VKey == VK_LSHIFT) {
-            isSprintingForward = false;
-        }
-    } else {
-        // Key down
+    if (!(rawKeyboard.Flags & RI_KEY_BREAK)) { // Key down
         handleEnhancedKeyPress(rawKeyboard.VKey);
     }
 }
@@ -91,8 +97,20 @@ void handleEnhancedKeyPress(int vk) {
     int current_mod = 0;
     if(ctrlPressed) current_mod = VK_CONTROL;
     else if(altPressed) current_mod = VK_LMENU;
+    
+    // ... (System and profile switching keys)
 
-    // --- REFACTORED FIRING LOGIC ---
+    if (vk == g_keybindings.contextual_movement_assist_vk && current_mod == g_keybindings.contextual_movement_assist_mod) {
+        auto time_since_sprint_start = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - g_sprintStartTime
+        ).count();
+        
+        if (isSprintingForward.load() && time_since_sprint_start > 500) {
+            g_performanceOpt->addTask(executeContextualStrafeJump);
+        }
+        return;
+    }
+
     if (vk == VK_LBUTTON && current_mod == 0) {
         if (g_weaponProfiles.empty()) return;
         const auto& profile = g_weaponProfiles[g_activeProfileIndex.load()];
@@ -101,12 +119,11 @@ void handleEnhancedKeyPress(int vk) {
             g_performanceOpt->addTask(enhancedIntelligentRapidFire);
         } else if (profile.fireMode == "Controlled") {
             g_performanceOpt->addTask(controlledAutomaticFire);
-        } else if (profile.fireMode == "Tactical") { // <-- NEW CONDITION
+        } else if (profile.fireMode == "Tactical") {
             g_performanceOpt->addTask(tacticalFire);
-        } else if (profile.fireMode == "Single") {
-            // For "Single" mode, we do nothing.
-            // The click will be processed natively by the game.
-            // This is intentional.
+        }
+        else if (profile.fireMode == "Automatic" || profile.fireMode == "Single") {
+            // Intentionally empty. The click is passed through to the game.
         }
         return;
     }

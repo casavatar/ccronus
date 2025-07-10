@@ -11,16 +11,24 @@
 
 #include <string>
 #include <vector>
+#include <map> // Added for pid_states
 
-// --- Weapon Profile Struct ---
+// NEW: Structure to hold PID parameters
+struct PIDParams {
+    double kp, ki, kd;
+};
+
 class WeaponProfile {
 public:
     std::string name;
-    std::string fireMode; // "Rapid", "Controlled", "Single"
+    std::string fireMode;
     std::vector<int> recoilPattern;
     int fireDelayBase;
     int fireDelayVariance;
-    double pid_kp, pid_ki, pid_kd;
+    // DEPRECATED: pid_kp, pid_ki, pid_kd are replaced by pid_states
+    // We keep them for now to avoid breaking existing profiles, but new logic will ignore them.
+    double pid_kp, pid_ki, pid_kd; 
+    std::map<std::string, PIDParams> pid_states; // NEW: Holds PID settings for different movement states
     double smoothingFactor;
 };
 

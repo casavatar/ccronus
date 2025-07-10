@@ -1,23 +1,22 @@
-// descption: This file implements the assistive aiming system for headshot prioritization in a game.
-// It includes a class for hitbox detection and functions for calculating magnetism and sticky factors based on distance and confidence.
-// The main function `enhancedHeadshotAimAssist` integrates these components to provide an enhanced aiming experience.
-//
+// description: This file implements the advanced, PID-based aim assist system.
+// It prioritizes headshots and uses dynamic smoothing for a natural feel.
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 1.0.0
-// date: 2025-06-25
+// version: 2.9.2
+// date: 2025-06-26
 // project: Tactical Aim Assist
-//
 
 #include "assist.h"
 #include "globals.h"
 #include "systems.h"
-#include "movements.h" // Para predictiveMouseMove
+#include "movements.h"
+#include "profiles.h"
 #include <cmath>
-#include <algorithm> // Para std::min y std::max
+#include <algorithm>
 
-// --- Implementación de Clases de Asistencia ---
+extern std::atomic<PlayerMovementState> g_playerMovementState;
 
+// Headshot Priority System Implementation
 HeadshotPrioritySystem::HeadshotPrioritySystem() {
     closeRange = {45, 8, 30, 60};
     midRange = {35, 6, 25, 50};
@@ -52,9 +51,7 @@ int HeadshotPrioritySystem::calculateHeadshotAdjustment(POINT current, HitboxInf
     return verticalDiff;
 }
 
-
-// --- Implementación de Funciones de Asistencia ---
-
+// Magnetism and Sticky Factor Calculations
 double calculateMagnetism(int distance, double confidence) {
     double distanceFactor = 1.0;
     if (distance < 30) distanceFactor = 0.8;
@@ -83,8 +80,10 @@ double getStickyFactor(int distanceToTarget, double predictionConfidence, double
     return baseSticky * stickyMultiplier;
 }
 
+
+// --- REENGINEERED: Aim Assist Main Function ---
 void enhancedHeadshotAimAssist() {
-    if (!g_assistEnabled.load() || !g_predictiveAim) return;
+    if (!g_assistEnabled.load() || !g_pidX || !g_pidY || !g_predictiveAim || !g_smoothingSystem) return;
 
     if (g_antiDetection) {
         g_antiDetection->updateContext(AntiDetectionSystem::AIMING);
@@ -92,93 +91,67 @@ void enhancedHeadshotAimAssist() {
     
     g_predictiveAim->updateCursorHistory();
     
-    POINT predicted = g_predictiveAim->getPredictedTarget();
+    // 1. Get Prediction Data
+    POINT predicted_target = g_predictiveAim->getPredictedTarget();
     double confidence = g_predictiveAim->getPredictionConfidence();
     
-    if (confidence < 0.15) return;
-    
-    POINT current;
-    GetCursorPos(&current);
-    
-    int distance = static_cast<int>(std::sqrt(
-        std::pow(static_cast<double>(predicted.x) - SCREEN_CENTER_X, 2) + 
-        std::pow(static_cast<double>(predicted.y) - SCREEN_CENTER_Y, 2)
-    ) / 10);
-    
-    static HeadshotPrioritySystem headshotSystem; // Instancia estática local
-    HitboxInfo hitbox = headshotSystem.detectHitbox(predicted, distance);
-    
-    bool aimForHead = (hitbox.headConfidence > 0.5 && distance < 80);
-    POINT aimTarget = aimForHead ? hitbox.headCenter : hitbox.bodyCenter;
-    
-    int error_x = aimTarget.x - current.x;
-    int error_y = aimTarget.y - current.y;
-    
-    double magnetStrength = calculateMagnetism(distance, confidence);
-    double humanAccuracy = g_antiDetection ? g_antiDetection->getHumanAccuracy() : 0.9;
-    
-    double userMouseVelocity = g_predictiveAim->getUserMouseVelocity();
-    double stickyStrength = getStickyFactor(distance, confidence, userMouseVelocity);
-
-    if (std::abs(error_x) > 3 || std::abs(error_y) > 3) {
-        double correctionFactor = confidence * humanAccuracy * magnetStrength * stickyStrength;
-        
-        if (aimForHead && std::abs(error_y) < 30) {
-            correctionFactor *= 1.5;
-        }
-        
-        int snap_x = static_cast<int>(error_x * correctionFactor);
-        int snap_y = static_cast<int>(error_y * correctionFactor);
-        
-        int maxLimit = static_cast<int>(25 * confidence * magnetStrength);
-        snap_x = std::min(std::max(snap_x, -maxLimit), maxLimit);
-        snap_y = std::min(std::max(snap_y, -maxLimit), maxLimit);
-        
-        int moveType = (distance < 50) ? 3 : 2;
-        
-        if (std::abs(snap_x) > 1 || std::abs(snap_y) > 1) {
-            predictiveMouseMove(snap_x, snap_y, moveType);
-            
-            if (aimForHead && std::abs(error_x) < 20 && std::abs(error_y) < 20) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(3));
-                
-                int microY = headshotSystem.calculateHeadshotAdjustment(current, hitbox);
-                if (std::abs(microY) > 2 && std::abs(microY) < 15) {
-                    predictiveMouseMove(0, static_cast<int>(microY * 0.7), 3);
-                }
-            }
-            
-            if (confidence > 0.7 && g_predictiveAim) {
-                POINT velocity = g_predictiveAim->getTargetVelocity();
-                if (std::abs(velocity.x) > 50 || std::abs(velocity.y) > 50) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(5));
-                    
-                    int lead_x = static_cast<int>(velocity.x * 0.02 * distance / 100.0);
-                    int lead_y = static_cast<int>(velocity.y * 0.02 * distance / 100.0);
-                    
-                    lead_x = std::min(std::max(lead_x, -8), 8);
-                    lead_y = std::min(std::max(lead_y, -8), 8);
-                    
-                    if (std::abs(lead_x) > 1 || std::abs(lead_y) > 1) {
-                        predictiveMouseMove(lead_x, lead_y, 3);
-                    }
-                }
-            }
-        }
+    if (confidence < 0.25) {
+        g_pidX->reset();
+        g_pidY->reset();
+        return;
     }
     
-    static std::chrono::steady_clock::time_point lastSticky = std::chrono::steady_clock::now();
-    auto now = std::chrono::steady_clock::now();
+    // 2. Dynamic PID Tuning based on Movement State
+    const auto& currentProfile = g_weaponProfiles[g_activeProfileIndex.load()];
+    PlayerMovementState currentState = g_playerMovementState.load();
+    PIDParams current_pid;
+
+    switch (currentState) {
+        case PlayerMovementState::Sprinting:
+        case PlayerMovementState::Walking:
+            current_pid = currentProfile.pid_states.at("moving");
+            break;
+        case PlayerMovementState::Strafing:
+            current_pid = currentProfile.pid_states.at("strafing");
+            break;
+        case PlayerMovementState::Stationary:
+        default:
+            current_pid = currentProfile.pid_states.at("stationary");
+            break;
+    }
+    g_pidX->updateParams(current_pid.kp, current_pid.ki, current_pid.kd);
+    g_pidY->updateParams(current_pid.kp, current_pid.ki, current_pid.kd);
     
-    if (std::chrono::duration_cast<std::chrono::milliseconds>(now - lastSticky).count() > 50) {
-        if (std::abs(error_x) < 15 && std::abs(error_y) < 15 && confidence > 0.6) {
-            int sticky_x = static_cast<int>(error_x * 0.15);
-            int sticky_y = static_cast<int>(error_y * 0.15);
-            
-            if (std::abs(sticky_x) > 0 || std::abs(sticky_y) > 0) {
-                predictiveMouseMove(sticky_x, sticky_y, 3);
-            }
-        }
-        lastSticky = now;
+    // 3. Error Calculation
+    POINT current_pos;
+    GetCursorPos(&current_pos);
+    int error_x = predicted_target.x - current_pos.x;
+    int error_y = predicted_target.y - current_pos.y;
+
+    // 4. Decoupling of Intent
+    double user_mouse_velocity = g_predictiveAim->getUserMouseVelocity();
+    double intent_decoupling_factor = 1.0 - std::min(1.0, user_mouse_velocity / 25.0);
+    
+    // 5. PID Calculation
+    double correction_x = g_pidX->calculate(error_x) * intent_decoupling_factor;
+    double correction_y = g_pidY->calculate(error_y) * intent_decoupling_factor;
+
+    // 6. Dynamic Smoothing
+    POINT target_velocity_vec = g_predictiveAim->getTargetVelocity();
+    double target_velocity_scalar = std::hypot(static_cast<double>(target_velocity_vec.x), static_cast<double>(target_velocity_vec.y));
+    double smoothing_factor = g_smoothingSystem->getSmoothingFactor(true, true, target_velocity_scalar);
+
+    int final_dx = static_cast<int>(correction_x * smoothing_factor);
+    int final_dy = static_cast<int>(correction_y * smoothing_factor);
+
+    // 7. Micro-correction
+    if (std::abs(error_x) < 5 && std::abs(error_y) < 5) {
+        final_dx += (error_x > 0) ? 1 : ((error_x < 0) ? -1 : 0);
+        final_dy += (error_y > 0) ? 1 : ((error_y < 0) ? -1 : 0);
+    }
+    
+    // 8. Execute Mouse Movement
+    if (std::abs(final_dx) > 0 || std::abs(final_dy) > 0) {
+        predictiveMouseMove(final_dx, final_dy, 3);
     }
 }

@@ -9,12 +9,18 @@
 
 #pragma once // Tactical Aim Assist GUI Header
 #include <atomic> // Added for std::atomic
-#include <string> // Added for std::string
+#include <string>   // Added for std::string
 
-void enhancedGuiThread(); // Function to run the enhanced GUI thread
+// --- New Custom Window Messages for thread-safe GUI updates ---
+#define WM_UPDATE_ANALYTICS (WM_USER + 2) // Custom message for analytics updates
+#define WM_UPDATE_AUDIO_ALERT (WM_USER + 3) // Custom message for audio alert updates
+#define WM_UPDATE_MOVEMENT_STATUS (WM_USER + 4) // Custom message for movement status updates
+
+void enhancedGuiThread(); // Function to start the GUI thread
 void updateProfileLabel(); // Function to update the profile label in the GUI
-void updateAnalyticsLabel(); // Function to update the analytics label in the GUI
-void updateAudioAlertLabel(const std::string& alert_text); // New function for audio alerts
-void updateMovementStatusLabel(const std::string& status_text); // New movement status label function
+// These functions will now post messages instead of directly updating the GUI
+void postUpdateAnalytics(); // Function to post an update for analytics
+void postUpdateAudioAlert(const std::string& alert_text); // Function to post an audio alert update
+void postUpdateMovementStatus(const std::string& status_text); // Function to post a movement status update
 
-extern std::atomic<bool> guiReady; // Atomic variable to indicate if the GUI is ready
+extern std::atomic<bool> guiReady; // Flag to indicate if the GUI is ready

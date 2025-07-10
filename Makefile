@@ -1,7 +1,7 @@
 # Makefile for the Tactical Aim Assist Project
 #
 # developer: ingekastel (with AI assistance)
-# version: 5.1.0 (Final - Explicit Library Path Linking)
+# version: 6.0.0 (Final Static/Explicit Linking)
 # date: 2025-07-04
 # project: Tactical Aim Assist
 
@@ -13,7 +13,6 @@ LDFLAGS = -mwindows -static
 # --- Directories and Paths ---
 SRCDIR = src
 OBJDIR = obj
-AUBIO_PATH = aubio
 PORTAUDIO_PATH = portaudio
 
 # --- Files and Executable ---
@@ -23,30 +22,24 @@ OBJS = $(patsubst $(SRCDIR)/%.cpp,$(OBJDIR)/%.o,$(SRCS))
 
 # --- Include Paths ---
 INC_FLAGS = -I$(SRCDIR) \
-            -I$(AUBIO_PATH)/src \
             -I$(PORTAUDIO_PATH)/include
 
 # --- Library Paths and Files ---
-# Define search paths for the linker (still useful for system libs).
-LIB_PATHS = -L$(AUBIO_PATH)/build/src \
-            -L$(PORTAUDIO_PATH)/lib/.libs
+# Explicit path to the statically compiled PortAudio library.
+PORTAUDIO_LIB_FILE = $(PORTAUDIO_PATH)/lib/.libs/libportaudio.a
 
-# FIX: Define explicit paths to the library files to avoid ambiguity.
-# This uses the exact filenames provided by the user.
-AUBIO_LIB_FILE = $(AUBIO_PATH)/build/src/libaubio.a
-PORTAUDIO_LIB_FILE = $(PORTAUDIO_PATH)/lib/.libs/libportaudio.dll.a
-
-# System libraries required for PortAudio and Windows GUI functions.
+# System libraries required for PortAudio, FFTW, and Windows GUI functions.
+# The linker will find these in the MinGW system path.
 SYSTEM_LIBS = -lfftw3f -ldsound -lwinmm -lole32 -luuid -lksguid -lgdi32
 
 # --- Build Rules ---
 all: $(TARGET)
 
-# The linker command now uses the explicit library file paths instead of -l flags
-# for aubio and portaudio. The order is critical.
+# The linker command now uses the explicit path to the static portaudio library.
+# The object files come first, then our specific libraries, then system libraries.
 $(TARGET): $(OBJS)
-	@echo "Linking executable with explicit library paths..."
-	$(CXX) $(OBJS) -o $@ $(LIB_PATHS) $(AUBIO_LIB_FILE) $(PORTAUDIO_LIB_FILE) $(SYSTEM_LIBS) $(LDFLAGS)
+	@echo "Linking executable with static PortAudio library..."
+	$(CXX) $(OBJS) -o $@ $(PORTAUDIO_LIB_FILE) $(SYSTEM_LIBS) $(LDFLAGS)
 	@echo "Build finished: $(TARGET)"
 
 # Compile each source file into an object file

@@ -1,8 +1,8 @@
 // description: Implementation of the audio analysis system using PortAudio and FFTW.
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 2.7.0
-// date: 2025-06-26
+// version: 2.8.1 (Correct PortAudio Device Iteration)
+// date: 2025-07-04
 // project: Tactical Aim Assist
 
 #include "audio_system.h"
@@ -11,8 +11,9 @@
 #include <iostream>
 #include <cmath>
 #include <numeric>
+#include <string.h>
 
-// FIX: Constructor implementation now matches the header declaration (2 arguments).
+// ... (El constructor y destructor de AudioManager no cambian) ...
 AudioManager::AudioManager(uint32_t sample_rate, uint32_t buffer_size)
     : m_sample_rate(sample_rate), m_buffer_size(buffer_size),
       m_ring_buffer(sample_rate * 2)
@@ -37,18 +38,49 @@ AudioManager::~AudioManager() {
     delete m_last_alert.load();
 }
 
-// ... (start, stop, getLatestAlert, and paCallback functions remain unchanged) ...
+
 bool AudioManager::start() {
     m_running = true;
 
-    const PaDeviceIndex dev_idx = Pa_GetDefaultOutputDevice();
-    const PaDeviceInfo* dev_info = Pa_GetDeviceInfo(dev_idx);
+    // --- FIX: Correctly iterate through all devices to find the WASAPI loopback device ---
+    PaDeviceIndex dev_idx = paNoDevice;
+    const PaDeviceInfo* dev_info = nullptr;
+
+    const PaHostApiIndex host_api_idx = Pa_HostApiTypeIdToHostApiIndex(paWASAPI);
+    if (host_api_idx < 0) {
+        logMessage("PortAudio Error: WASAPI host API not found.");
+        return false;
+    }
+
+    const int device_count = Pa_GetDeviceCount();
+    for (PaDeviceIndex i = 0; i < device_count; ++i) {
+        const PaDeviceInfo* current_dev_info = Pa_GetDeviceInfo(i);
+        if (current_dev_info &&
+            current_dev_info->hostApi == host_api_idx &&
+            current_dev_info->maxInputChannels > 0 &&
+            strstr(current_dev_info->name, "Loopback"))
+        {
+            dev_idx = i;
+            dev_info = current_dev_info;
+            logMessage(std::string("Found WASAPI Loopback Device: ") + dev_info->name);
+            break; // Found our device, exit the loop
+        }
+    }
+
+    if (dev_idx == paNoDevice || dev_info == nullptr) {
+        logMessage("PortAudio Error: No suitable WASAPI loopback device found.");
+        logMessage("Please ensure 'Stereo Mix' or a similar recording device is enabled in Windows sound settings.");
+        return false;
+    }
 
     PaStreamParameters stream_params = {};
     stream_params.device = dev_idx;
-    stream_params.channelCount = dev_info->maxInputChannels > 0 ? dev_info->maxInputChannels : 1;
+    stream_params.channelCount = dev_info->maxInputChannels;
     stream_params.sampleFormat = paFloat32;
     stream_params.suggestedLatency = dev_info->defaultLowInputLatency;
+    stream_params.hostApiSpecificStreamInfo = NULL;
+
+    logMessage("Attempting to open stream with " + std::to_string(stream_params.channelCount) + " channels at " + std::to_string(m_sample_rate) + " Hz.");
 
     PaError err = Pa_OpenStream(
         &m_stream, &stream_params, nullptr, m_sample_rate, m_buffer_size,
@@ -56,7 +88,9 @@ bool AudioManager::start() {
     );
 
     if (err != paNoError) {
-        logMessage("PortAudio Error: Failed to open stream.");
+        std::string error_text = "PortAudio Error: Failed to open stream. Details: ";
+        error_text += Pa_GetErrorText(err);
+        logMessage(error_text);
         return false;
     }
 
@@ -67,7 +101,7 @@ bool AudioManager::start() {
     }
 
     m_analysis_thread = std::thread(&AudioManager::analysisLoop, this);
-    logMessage("Audio analysis system (FFTW) started.");
+    logMessage("Audio analysis system (FFTW) started successfully.");
     return true;
 }
 

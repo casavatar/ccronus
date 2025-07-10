@@ -32,6 +32,11 @@
 #define WM_LOG_MESSAGE (WM_USER + 1) // Custom message for log updates
 #define ID_MOVEMENT_STATUS_LABEL 1007 // New ID for movement status label
 
+#define WM_LOG_MESSAGE (WM_USER + 1) // Custom message for log updates
+#define WM_UPDATE_ANALYTICS (WM_USER + 2) // Custom message for analytics updates
+#define WM_UPDATE_AUDIO_ALERT (WM_USER + 3) // Custom message for audio alert updates
+#define WM_UPDATE_MOVEMENT_STATUS (WM_USER + 4) // Custom message for movement status updates
+
 // --- FIX: Declare GUI handles in the global scope of the file ---
 HWND hListBox = NULL; // List box for displaying logs
 HWND hStatusLabel = NULL; // Status label for the current state of the application
@@ -41,10 +46,17 @@ HWND hAnalyticsLabel = NULL; // Analytics label for performance metrics
 HWND hAudioAlertLabel = NULL; // New handle for the audio alert label
 HWND hMovementStatusLabel = NULL; // New handle for the movement status label
 
+// Declare mutex and queues for log handling
 std::mutex logMutex;
 std::deque<std::string> logQueue;
 std::atomic<bool> guiReady(false);
 std::atomic<bool> shouldCloseGUI(false);
+
+// Global buffers for GUI updates
+std::mutex g_gui_string_mutex;
+std::string g_analytics_buffer;
+std::string g_audio_alert_buffer;
+std::string g_movement_status_buffer;
 
 void logMessage(const std::string& message) {
     auto t = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -103,6 +115,21 @@ LRESULT CALLBACK EnhancedWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
             guiReady = true;
             break;
         }
+        case WM_UPDATE_ANALYTICS: {
+            std::lock_guard<std::mutex> lock(g_gui_string_mutex);
+            SetWindowTextA(hAnalyticsLabel, g_analytics_buffer.c_str());
+            return 0;
+        }
+        case WM_UPDATE_AUDIO_ALERT: {
+            std::lock_guard<std::mutex> lock(g_gui_string_mutex);
+            SetWindowTextA(hAudioAlertLabel, g_audio_alert_buffer.c_str());
+            return 0;
+        }
+        case WM_UPDATE_MOVEMENT_STATUS: {
+            std::lock_guard<std::mutex> lock(g_gui_string_mutex);
+            SetWindowTextA(hMovementStatusLabel, g_movement_status_buffer.c_str());
+            return 0;
+        }
         case WM_INPUT: {
             UINT dwSize;
             GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
@@ -160,7 +187,12 @@ void enhancedGuiThread() {
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     RegisterClassW(&wc);
-    g_hWnd = CreateWindowExW(0, CLASS_NAME, L"Professional Tactical System", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 500, 400, NULL, NULL, GetModuleHandle(NULL), NULL);
+
+    g_hWnd = CreateWindowExW(0, CLASS_NAME, L"Professional Tactical System",
+                             WS_OVERLAPPEDWINDOW,
+                             g_monitorOffsetX, g_monitorOffsetY, // Use monitor offsets for window position
+                             500, 400, NULL, NULL, GetModuleHandle(NULL), NULL);
+
     if (g_hWnd == NULL) { return; }
     ShowWindow(g_hWnd, SW_SHOW);
     MSG msg = {};
@@ -178,37 +210,35 @@ void updateProfileLabel() {
     }
 }
 
-void updateAnalyticsLabel() {
-    if (hAnalyticsLabel && guiReady.load() && g_predictiveAim && g_performanceOpt) {
-        std::ostringstream analytics;
-        analytics << "Pred: " << std::fixed << std::setprecision(0) << (g_predictiveAim->getPredictionConfidence() * 100) << "% | ";
-        
-        analytics << g_performanceOpt->getPerformanceMetrics();
-        
-        // Convertir std::string a std::wstring para SetWindowTextW
-        std::string s = analytics.str();
-        int len;
-        int slength = (int)s.length() + 1;
-        len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, 0, 0); 
-        wchar_t* buf = new wchar_t[len];
-        MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, buf, len);
-        std::wstring wstr(buf);
-        delete[] buf;
-
-        SetWindowTextW(hAnalyticsLabel, wstr.c_str());
+void postUpdateAnalytics() {
+    if (guiReady.load() && g_hWnd) {
+        {
+            std::lock_guard<std::mutex> lock(g_gui_string_mutex);
+            std::ostringstream analytics;
+            analytics << "Pred: " << std::fixed << std::setprecision(0) << (g_predictiveAim->getPredictionConfidence() * 100) << "% | ";
+            analytics << g_performanceOpt->getPerformanceMetrics();
+            g_analytics_buffer = analytics.str();
+        }
+        PostMessage(g_hWnd, WM_UPDATE_ANALYTICS, 0, 0);
     }
 }
 
-// New function to update the audio alert label
-void updateAudioAlertLabel(const std::string& alert_text) {
-    if (hAudioAlertLabel && guiReady.load()) {
-        SetWindowTextA(hAudioAlertLabel, alert_text.c_str());
+void postUpdateAudioAlert(const std::string& alert_text) {
+    if (guiReady.load() && g_hWnd) {
+        {
+            std::lock_guard<std::mutex> lock(g_gui_string_mutex);
+            g_audio_alert_buffer = alert_text;
+        }
+        PostMessage(g_hWnd, WM_UPDATE_AUDIO_ALERT, 0, 0);
     }
 }
 
-// New function to update the movement status label
-void updateMovementStatusLabel(const std::string& status_text) {
-    if (hMovementStatusLabel && guiReady.load()) {
-        SetWindowTextA(hMovementStatusLabel, status_text.c_str());
+void postUpdateMovementStatus(const std::string& status_text) {
+    if (guiReady.load() && g_hWnd) {
+        {
+            std::lock_guard<std::mutex> lock(g_gui_string_mutex);
+            g_movement_status_buffer = status_text;
+        }
+        PostMessage(g_hWnd, WM_UPDATE_MOVEMENT_STATUS, 0, 0);
     }
 }

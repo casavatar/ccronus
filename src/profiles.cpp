@@ -14,9 +14,10 @@
 #include <iomanip>
 
 // These state variables are defined in movements.cpp and globals.cpp
-extern std::atomic<bool> isRapidFiring;
-extern std::atomic<bool> isControlledAutoFiring;
+extern std::atomic<bool> isRapidFiring; // Extern for the new Rapid firing mode
+extern std::atomic<bool> isControlledAutoFiring; // Extern for the new Controlled automatic fire mode
 extern std::atomic<bool> isTacticalFiring; // Extern for the new Tactical fire mode
+extern std::atomic<bool> isAutomaticFiring; // Extern for the new mode
 
 // Function to switch weapon profiles
 void switchProfile(int profileIndex) {
@@ -30,6 +31,7 @@ void switchProfile(int profileIndex) {
     
     const auto& profile = g_weaponProfiles[profileIndex];
 
+    // --- FIX: Update PID controllers with new profile values ---
     if (g_pidX && g_pidY) {
         g_pidX->updateParams(profile.pid_kp, profile.pid_ki, profile.pid_kd);
         g_pidX->reset();
@@ -45,9 +47,9 @@ void switchProfile(int profileIndex) {
     
     // Stop any active firing loops. This is a "soft" stop.
     // The loops themselves check this atomic bool.
-    isRapidFiring = false;
-    isControlledAutoFiring = false;
-    isTacticalFiring = false; // Stop tactical firing when switching profiles
+    isRapidFiring = false; // Stop rapid firing mode
+    isControlledAutoFiring = false; // Stop controlled automatic firing mode
+    isTacticalFiring = false; // Stop tactical firing mode
     
     std::ostringstream profileInfo;
     profileInfo << "Profile Switch: [" << previousProfile + 1 << "] " 

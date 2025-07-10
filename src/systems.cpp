@@ -125,10 +125,11 @@ double TacticalPIDController::calculate(double current_error) {
     std::lock_guard<std::mutex> lock(pidMutex);
     auto now = std::chrono::steady_clock::now();
     double dt = std::chrono::duration_cast<std::chrono::microseconds>(now - last_time).count() / 1000000.0;
+    if (dt <= 0) dt = 0.001; // Avoid division by zero
     last_time = now;
     integral += current_error * dt;
     integral = std::max(-integralLimit, std::min(integralLimit, integral));
-    double derivative = (dt > 0) ? (current_error - prev_error) / dt : 0.0;
+    double derivative = (current_error - prev_error) / dt;
     prev_error = current_error;
     double output = kp * current_error + ki * integral + kd * derivative;
     return std::max(-outputLimit, std::min(outputLimit, output));
@@ -144,15 +145,21 @@ AdaptiveSmoothingSystem::AdaptiveSmoothingSystem() {
     currentSmoothing = currentProfile.baseSmoothing;
     lastUpdate = std::chrono::steady_clock::now();
 }
-double AdaptiveSmoothingSystem::getSmoothingFactor(bool inCombat, bool requiresPrecision) {
+double AdaptiveSmoothingSystem::getSmoothingFactor(bool inCombat, bool requiresPrecision, double target_velocity) {
     auto now = std::chrono::steady_clock::now();
     double deltaTime = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastUpdate).count() / 1000.0;
     lastUpdate = now;
+    
     double targetSmoothing = currentProfile.baseSmoothing;
     if (requiresPrecision) targetSmoothing = currentProfile.precisionSmoothing;
     else if (inCombat) targetSmoothing = currentProfile.combatSmoothing;
+
+    // Reduce smoothing for fast moving targets to allow user to lead shots
+    double velocityFactor = 1.0 - std::min(1.0, target_velocity / 150.0) * 0.5;
+    targetSmoothing *= velocityFactor;
+
     currentSmoothing += (targetSmoothing - currentSmoothing) * currentProfile.transitionSpeed * deltaTime;
-    currentSmoothing = std::max(0.5, std::min(1.0, currentSmoothing));
+    currentSmoothing = std::max(0.1, std::min(1.0, currentSmoothing)); // Allow lower smoothing
     return currentSmoothing;
 }
 void AdaptiveSmoothingSystem::updateProfile(double base, double combat, double precision) {

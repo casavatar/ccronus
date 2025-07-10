@@ -10,15 +10,15 @@
 
 #include <windows.h>
 
-// Movimiento del Ratón
+// Mouse and Keyboard Simulation Functions
 void predictiveMouseMove(int dx, int dy, int movementType = 0);
 
 // Modos de Disparo
-void controlledAutomaticFire();
-void enhancedIntelligentRapidFire();
-void tacticalFire(); // New Tactical fire mode function
+void controlledAutomaticFire(); // Controlled automatic fire mode
+void enhancedIntelligentRapidFire(); // New enhanced rapid fire mode
+void tacticalFire(); // New tactical fire mode
 
-// Movimientos Tácticos
+// Tactical Movements
 void executeSmartDiagonalSprint(bool leftDirection);
 void executePredictiveSlide();
 void executeAntiDetectionDiveBack();
@@ -28,5 +28,5 @@ void executeDropShotSupineSlide();
 void executeSlideCancelDirectional();
 void executeDiveDirectionalIntelligent();
 void executeOmnidirectionalSlide();
-void executeContextualStrafeJump(); // New advanced movement assist
+void executeContextualStrafeJump();
 void executeMovementTest();

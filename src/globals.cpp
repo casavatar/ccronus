@@ -13,13 +13,16 @@
 
 // Definition of global variables
 HWND g_hWnd = NULL;
-std::atomic<bool> g_running(true);
-std::atomic<bool> g_assistEnabled(true);
+std::atomic<bool> g_running(true); // Flag to indicate if the application is running
+std::atomic<bool> g_assistEnabled(true); // Flag to indicate if the assist is enabled
+std::atomic<bool> g_isSimulatingInput(false); // Flag to indicate if input simulation is active
 
-int MONITOR_WIDTH = 1920;
-int MONITOR_HEIGHT = 1080;
-int SCREEN_CENTER_X = 1920 / 2;
-int SCREEN_CENTER_Y = 1080 / 2;
+int MONITOR_WIDTH = 1920; // Width and height of the target monitor
+int MONITOR_HEIGHT = 1080; // Width and height of the target monitor
+int g_monitorOffsetX = 0; // X offset definition
+int g_monitorOffsetY = 0; // Y offset definition
+int SCREEN_CENTER_X = 1920 / 2; // Center coordinates of the screen
+int SCREEN_CENTER_Y = 1080 / 2; // Center coordinates of the screen
 
 std::vector<WeaponProfile> g_weaponProfiles;
 std::atomic<int> g_activeProfileIndex(0);
@@ -31,9 +34,13 @@ std::unique_ptr<PerformanceOptimizer> g_performanceOpt;
 std::unique_ptr<AdaptiveSmoothingSystem> g_smoothingSystem;
 std::unique_ptr<MomentumSystem> g_momentumSys;
 std::unique_ptr<VisualFeedbackSystem> g_feedbackSys;
+std::unique_ptr<AudioManager> g_audioManager;
+// PID Controllers
 std::unique_ptr<TacticalPIDController> g_pidX;
 std::unique_ptr<TacticalPIDController> g_pidY;
-std::unique_ptr<AudioManager> g_audioManager;
+// NEW: Definition for the player's movement state
+std::atomic<PlayerMovementState> g_playerMovementState(PlayerMovementState::Stationary);
+
 
 // Firing mode states - Centralized definition
 std::atomic<bool> isTacticalFiring(false);

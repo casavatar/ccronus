@@ -51,16 +51,17 @@ public:
 // PID Controller
 class TacticalPIDController {
 public:
+    TacticalPIDController(double p, double i, double d);
+    void reset();
+    double calculate(double current_error);
+    void updateParams(double p, double i, double d);
+
+private:
     double kp, ki, kd;
     double prev_error, integral;
     std::chrono::steady_clock::time_point last_time;
     std::mutex pidMutex;
     double integralLimit = 100.0, outputLimit = 50.0;
-
-    TacticalPIDController(double p, double i, double d);
-    void reset();
-    double calculate(double current_error);
-    void updateParams(double p, double i, double d);
 };
 
 // Adaptive Smoothing System
@@ -72,7 +73,8 @@ private:
     std::chrono::steady_clock::time_point lastUpdate;
 public:
     AdaptiveSmoothingSystem();
-    double getSmoothingFactor(bool inCombat = false, bool requiresPrecision = false);
+    // Now considers target velocity for dynamic adjustments
+    double getSmoothingFactor(bool inCombat, bool requiresPrecision, double target_velocity);
     void updateProfile(double base, double combat, double precision);
 };
 

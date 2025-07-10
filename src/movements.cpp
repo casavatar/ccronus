@@ -20,6 +20,7 @@
 extern std::atomic<bool> isRapidFiring; // Indicates if the rapid firing mode is currently active, preventing overlapping actions
 extern std::atomic<bool> isControlledAutoFiring; // Indicates if the controlled automatic firing mode is currently active, preventing overlapping actions
 extern std::atomic<bool> isTacticalFiring; // Indicates if the tactical firing mode is currently active, preventing overlapping actions
+extern std::atomic<bool> g_isSimulatingInput; // Indicates if input simulation is active
 
 // Global state variables for movement logic
 std::atomic<bool> isExecutingMovement(false); // Indicates if a movement action is currently being executed, preventing overlapping actions
@@ -47,20 +48,27 @@ void smartKey(WORD key, int baseDurationMs = 20) {
     input[1].type = INPUT_KEYBOARD;
     input[1].ki.wVk = key;
     input[1].ki.dwFlags = KEYEVENTF_KEYUP;
-    
+
+    g_isSimulatingInput = true; // --- FIX: Announce we are simulating input ---
     SendInput(1, &input[0], sizeof(INPUT));
     std::this_thread::sleep_for(std::chrono::milliseconds(smartRandom(baseDurationMs, 5)));
     SendInput(1, &input[1], sizeof(INPUT));
+    g_isSimulatingInput = false;
 }
+
 
 void smartMouseClick() {
     if (g_antiDetection) g_antiDetection->registerAction(VK_LBUTTON);
+    
     INPUT input[2] = {};
     input[0].type = INPUT_MOUSE;
     input[0].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
     input[1].type = INPUT_MOUSE;
     input[1].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-    SendInput(2, input, sizeof(INPUT));
+
+    g_isSimulatingInput = true; // --- FIX: Announce we are simulating input ---
+    SendInput(2, input, sizeof(INPUT)); // Send both down and up events in one go
+    g_isSimulatingInput = false; // --- FIX: Announce simulation is over ---
 }
 
 
@@ -184,7 +192,10 @@ void predictiveMouseMove(int dx, int dy, int movementType) {
     
     double smoothingFactor = 1.0;
     if (g_smoothingSystem) {
-        smoothingFactor = g_smoothingSystem->getSmoothingFactor(inCombatMode.load(), (abs(dx) < 20 && abs(dy) < 20));
+        // FIX: The getSmoothingFactor function now requires a third argument for target velocity.
+        // Since we don't have target velocity information here (it's a generic mouse move),
+        // we pass a neutral value of 0.0.
+        smoothingFactor = g_smoothingSystem->getSmoothingFactor(inCombatMode.load(), (abs(dx) < 20 && abs(dy) < 20), 0.0);
     }
     
     dx = static_cast<int>(dx * smoothingFactor);
@@ -214,9 +225,10 @@ void predictiveMouseMove(int dx, int dy, int movementType) {
     }
 }
 
-
 // Controlled and Fast Fire Implementations
 // (Controlledautomaticfire and enhancedintelligentrapidfire Functions Without Changes)
+
+// Controlled Automatic Fire Implementation
 void controlledAutomaticFire() {
     bool expected = false;
     // If the variable is already 'True' (the function is already in execution), compare_exchange_strong returns 'false' and we leave.

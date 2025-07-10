@@ -15,7 +15,18 @@
 #include <memory>
 #include <atomic>
 #include <random>
-#include <chrono> // <-- FIX: Include the <chrono> header for time-related types.
+#include <chrono>
+
+// NEW: Enum to represent the player's current movement state
+enum class PlayerMovementState {
+    Stationary,
+    Walking,
+    Sprinting,
+    Strafing
+};
+
+// NEW: Global variable to track the player's movement state
+extern std::atomic<PlayerMovementState> g_playerMovementState; // NEW: Tracks the player's movement state
 
 // Forward declarations to break circular dependencies
 class WeaponProfile;
@@ -32,16 +43,20 @@ class AudioManager;
 extern HWND g_hWnd;
 extern std::atomic<bool> g_running;
 extern std::atomic<bool> g_assistEnabled;
+extern std::atomic<bool> g_isSimulatingInput;
 
 // Screen configuration
-extern int MONITOR_WIDTH;
-extern int MONITOR_HEIGHT;
-extern int SCREEN_CENTER_X;
-extern int SCREEN_CENTER_Y;
+extern int MONITOR_WIDTH; // Width and height of the target monitor
+extern int MONITOR_HEIGHT; // Width and height of the target monitor
+extern int g_monitorOffsetX; // X offset of the target monitor
+extern int g_monitorOffsetY; // Y offset of the target monitor
+extern int SCREEN_CENTER_X; // Center coordinates of the screen
+extern int SCREEN_CENTER_Y; // Center coordinates of the screen
 
 // Weapon Profiles
 extern std::vector<WeaponProfile> g_weaponProfiles;
 extern std::atomic<int> g_activeProfileIndex;
+extern std::atomic<bool> isTacticalFiring;
 
 // Contextual Movement States
 extern std::atomic<bool> isSprintingForward;
@@ -54,10 +69,11 @@ extern std::unique_ptr<PerformanceOptimizer> g_performanceOpt;
 extern std::unique_ptr<AdaptiveSmoothingSystem> g_smoothingSystem;
 extern std::unique_ptr<MomentumSystem> g_momentumSys;
 extern std::unique_ptr<VisualFeedbackSystem> g_feedbackSys;
+extern std::unique_ptr<AudioManager> g_audioManager;
+// PID Controllers
 extern std::unique_ptr<TacticalPIDController> g_pidX;
 extern std::unique_ptr<TacticalPIDController> g_pidY;
-extern std::unique_ptr<AudioManager> g_audioManager;
-extern std::atomic<bool> isTacticalFiring;
+
 
 // Enhanced random number generation
 extern std::random_device rd;
