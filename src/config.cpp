@@ -132,18 +132,12 @@ bool loadConfiguration(const std::string& filename) {
             p.fireDelayBase = profile_json["fire_delay_base"];
             p.fireDelayVariance = profile_json["fire_delay_variance"];
             p.smoothingFactor = profile_json["smoothing_factor"];
+            p.prediction_aggressiveness = profile_json.value("prediction_aggressiveness", 0.7); // NEW
 
-            // --- NEW: Load PID states ---
             if (profile_json.contains("pid_states")) {
                 for (auto& [state, params] : profile_json["pid_states"].items()) {
                     p.pid_states[state] = {params["kp"], params["ki"], params["kd"]};
                 }
-            } else {
-                // Fallback for old profiles
-                PIDParams fallback_pid = {profile_json["pid"]["kp"], profile_json["pid"]["ki"], profile_json["pid"]["kd"]};
-                p.pid_states["stationary"] = fallback_pid;
-                p.pid_states["moving"] = fallback_pid;
-                p.pid_states["strafing"] = fallback_pid;
             }
             g_weaponProfiles.push_back(p);
         }

@@ -261,9 +261,10 @@ POINT PredictiveAimSystem::getPredictedTarget(double humanAccuracy) {
     }
     return predicted;
 }
-double PredictiveAimSystem::getPredictionConfidence() { return currentPrediction.confidence; }
-POINT PredictiveAimSystem::getTargetVelocity() { return currentPrediction.velocity; }
-double PredictiveAimSystem::getUserMouseVelocity() const { return currentUserMouseVelocity; }
+double PredictiveAimSystem::getPredictionConfidence() { return currentPrediction.confidence; } // FIX: Ensure this function is defined in the header file.
+POINT PredictiveAimSystem::getTargetVelocity() { return currentPrediction.velocity; } // FIX: Ensure this function is defined in the header file.
+POINT PredictiveAimSystem::getAcceleration() { return currentPrediction.acceleration; } // FIX: Ensure this function is defined in the header file.
+double PredictiveAimSystem::getUserMouseVelocity() const { return currentUserMouseVelocity; } // FIX: Ensure this function is defined in the header file.
 POINT PredictiveAimSystem::getRawMouseDelta() {
     POINT current; GetCursorPos(&current);
     POINT delta = {current.x - lastCursorPosForUserVelocity.x, current.y - lastCursorPosForUserVelocity.y};

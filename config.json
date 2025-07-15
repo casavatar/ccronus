@@ -28,6 +28,7 @@
       "fire_delay_base": 85,
       "fire_delay_variance": 12,
       "smoothing_factor": 0.87,
+      "prediction_aggressiveness": 0.9,
       "pid_states": {
         "stationary": { "kp": 0.70, "ki": 0.32, "kd": 0.20 },
         "moving":     { "kp": 0.75, "ki": 0.22, "kd": 0.28 },
@@ -41,6 +42,7 @@
       "fire_delay_base": 60,
       "fire_delay_variance": 10,
       "smoothing_factor": 0.85,
+      "prediction_aggressiveness": 0.75,
       "pid_states": {
         "stationary": { "kp": 0.65, "ki": 0.30, "kd": 0.18 },
         "moving":     { "kp": 0.70, "ki": 0.20, "kd": 0.25 },
@@ -54,6 +56,7 @@
       "fire_delay_base": 15,
       "fire_delay_variance": 5,
       "smoothing_factor": 0.9,
+      "prediction_aggressiveness": 0.6,
       "pid_states": {
         "stationary": { "kp": 0.55, "ki": 0.25, "kd": 0.12 },
         "moving":     { "kp": 0.65, "ki": 0.15, "kd": 0.18 },
@@ -67,6 +70,7 @@
       "fire_delay_base": 90,
       "fire_delay_variance": 10,
       "smoothing_factor": 0.82,
+      "prediction_aggressiveness": 0.9,
       "pid_states": {
         "stationary": { "kp": 0.80, "ki": 0.40, "kd": 0.25 },
         "moving":     { "kp": 0.90, "ki": 0.25, "kd": 0.35 },
@@ -80,6 +84,7 @@
       "fire_delay_base": 0,
       "fire_delay_variance": 0,
       "smoothing_factor": 0.95,
+      "prediction_aggressiveness": 0.95,
       "pid_states": {
         "stationary": { "kp": 0.5, "ki": 0.1, "kd": 0.1 },
         "moving":     { "kp": 0.5, "ki": 0.1, "kd": 0.1 },

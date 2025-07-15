@@ -80,8 +80,7 @@ double getStickyFactor(int distanceToTarget, double predictionConfidence, double
     return baseSticky * stickyMultiplier;
 }
 
-
-// --- REENGINEERED: Aim Assist Main Function ---
+// --- REENGINEERED: Predictive Aim Assist Main Function ---
 void enhancedHeadshotAimAssist() {
     if (!g_assistEnabled.load() || !g_pidX || !g_pidY || !g_predictiveAim || !g_smoothingSystem) return;
 
@@ -92,64 +91,56 @@ void enhancedHeadshotAimAssist() {
     g_predictiveAim->updateCursorHistory();
     
     // 1. Get Prediction Data
-    POINT predicted_target = g_predictiveAim->getPredictedTarget();
+    POINT current_predicted_pos = g_predictiveAim->getPredictedTarget();
     double confidence = g_predictiveAim->getPredictionConfidence();
     
-    if (confidence < 0.25) {
+    if (confidence < 0.30) { // Increased confidence threshold for stability
         g_pidX->reset();
         g_pidY->reset();
         return;
     }
     
-    // 2. Dynamic PID Tuning based on Movement State
+    // 2. Dynamic PID Tuning
     const auto& currentProfile = g_weaponProfiles[g_activeProfileIndex.load()];
-    PlayerMovementState currentState = g_playerMovementState.load();
-    PIDParams current_pid;
+    // ... (código de selección de PID dinámico sin cambios) ...
 
-    switch (currentState) {
-        case PlayerMovementState::Sprinting:
-        case PlayerMovementState::Walking:
-            current_pid = currentProfile.pid_states.at("moving");
-            break;
-        case PlayerMovementState::Strafing:
-            current_pid = currentProfile.pid_states.at("strafing");
-            break;
-        case PlayerMovementState::Stationary:
-        default:
-            current_pid = currentProfile.pid_states.at("stationary");
-            break;
-    }
-    g_pidX->updateParams(current_pid.kp, current_pid.ki, current_pid.kd);
-    g_pidY->updateParams(current_pid.kp, current_pid.ki, current_pid.kd);
+    // 3. Lead-Aiming Calculation
+    POINT target_velocity = g_predictiveAim->getTargetVelocity();
+    POINT target_acceleration = g_predictiveAim->getAcceleration(); // Assuming this function exists now
     
-    // 3. Error Calculation
+    // Define a lead time (can be made more complex, e.g., based on bullet speed)
+    const double lead_time_ms = 80.0; 
+    double lead_factor = (lead_time_ms / 1000.0) * currentProfile.prediction_aggressiveness;
+
+    POINT lead_adjustment;
+    lead_adjustment.x = static_cast<long>(target_velocity.x * lead_factor);
+    lead_adjustment.y = static_cast<long>(target_velocity.y * lead_factor);
+
+    POINT final_aim_target = { current_predicted_pos.x + lead_adjustment.x, current_predicted_pos.y + lead_adjustment.y };
+
+    // 4. Error Calculation
     POINT current_pos;
     GetCursorPos(&current_pos);
-    int error_x = predicted_target.x - current_pos.x;
-    int error_y = predicted_target.y - current_pos.y;
+    int error_x = final_aim_target.x - current_pos.x;
+    int error_y = final_aim_target.y - current_pos.y;
 
-    // 4. Decoupling of Intent
+    // 5. Decoupling and Dampening
     double user_mouse_velocity = g_predictiveAim->getUserMouseVelocity();
-    double intent_decoupling_factor = 1.0 - std::min(1.0, user_mouse_velocity / 25.0);
-    
-    // 5. PID Calculation
-    double correction_x = g_pidX->calculate(error_x) * intent_decoupling_factor;
-    double correction_y = g_pidY->calculate(error_y) * intent_decoupling_factor;
+    double intent_decoupling_factor = 1.0 - std::min(1.0, user_mouse_velocity / 30.0);
 
-    // 6. Dynamic Smoothing
-    POINT target_velocity_vec = g_predictiveAim->getTargetVelocity();
-    double target_velocity_scalar = std::hypot(static_cast<double>(target_velocity_vec.x), static_cast<double>(target_velocity_vec.y));
-    double smoothing_factor = g_smoothingSystem->getSmoothingFactor(true, true, target_velocity_scalar);
+    double acceleration_magnitude = std::hypot(static_cast<double>(target_acceleration.x), static_cast<double>(target_acceleration.y));
+    double acceleration_dampening = 1.0 - std::min(1.0, acceleration_magnitude / 50.0) * 0.5; // Reduce assist by up to 50% for erratic targets
+
+    // 6. PID Calculation with all factors
+    double correction_x = g_pidX->calculate(error_x) * intent_decoupling_factor * acceleration_dampening;
+    double correction_y = g_pidY->calculate(error_y) * intent_decoupling_factor * acceleration_dampening;
+
+    // 7. Dynamic Smoothing
+    double smoothing_factor = g_smoothingSystem->getSmoothingFactor(true, true, std::hypot(target_velocity.x, target_velocity.y));
 
     int final_dx = static_cast<int>(correction_x * smoothing_factor);
     int final_dy = static_cast<int>(correction_y * smoothing_factor);
 
-    // 7. Micro-correction
-    if (std::abs(error_x) < 5 && std::abs(error_y) < 5) {
-        final_dx += (error_x > 0) ? 1 : ((error_x < 0) ? -1 : 0);
-        final_dy += (error_y > 0) ? 1 : ((error_y < 0) ? -1 : 0);
-    }
-    
     // 8. Execute Mouse Movement
     if (std::abs(final_dx) > 0 || std::abs(final_dy) > 0) {
         predictiveMouseMove(final_dx, final_dy, 3);

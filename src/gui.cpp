@@ -21,6 +21,7 @@
 #include <chrono>
 #include <ctime>
 #include <iostream>
+#include <CommCtrl.h>
 
 // --- GUI Specific Globals & Defines ---
 #define ID_LISTBOX 1001 // ID for the list box
@@ -40,7 +41,7 @@
 // --- FIX: Declare GUI handles in the global scope of the file ---
 HWND hListBox = NULL; // List box for displaying logs
 HWND hStatusLabel = NULL; // Status label for the current state of the application
-HWND hProfileLabel = NULL; // Profile label for current weapon profile
+HWND hProfileComboBox = NULL; // New handle for the profile ComboBox
 HWND hToggleButton = NULL; // Toggle button for assists
 HWND hAnalyticsLabel = NULL; // Analytics label for performance metrics
 HWND hAudioAlertLabel = NULL; // New handle for the audio alert label
@@ -93,25 +94,29 @@ LRESULT CALLBACK EnhancedWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
 
             // --- Control Creation ---
             hListBox = CreateWindowW(L"LISTBOX", L"", WS_CHILD | WS_VISIBLE | WS_VSCROLL | LBS_NOINTEGRALHEIGHT, 10, 110, 460, 230, hwnd, (HMENU)ID_LISTBOX, NULL, NULL);
-            hStatusLabel = CreateWindowW(L"STATIC", L"Status: Running", WS_CHILD | WS_VISIBLE, 10, 10, 200, 20, hwnd, (HMENU)ID_STATUS_LABEL, NULL, NULL);
-            hProfileLabel = CreateWindowW(L"STATIC", L"Profile: Loading...", WS_CHILD | WS_VISIBLE, 220, 10, 250, 20, hwnd, (HMENU)ID_PROFILE_LABEL, NULL, NULL);
+            hStatusLabel = CreateWindowW(L"STATIC", L"Status: Running", WS_CHILD | WS_VISIBLE, 10, 10, 150, 20, hwnd, (HMENU)ID_STATUS_LABEL, NULL, NULL);
             hToggleButton = CreateWindowW(L"BUTTON", L"Assists: ON", WS_CHILD | WS_VISIBLE | BS_PUSHBUTTON, 10, 40, 100, 25, hwnd, (HMENU)ID_TOGGLE_BUTTON, NULL, NULL);
             hAnalyticsLabel = CreateWindowW(L"STATIC", L"Analytics: Loading...", WS_CHILD | WS_VISIBLE, 120, 40, 350, 25, hwnd, (HMENU)ID_ANALYTICS_LABEL, NULL, NULL);
             // New Audio Alert Label
             hAudioAlertLabel = CreateWindowW(L"STATIC", L"Audio: OK", WS_CHILD | WS_VISIBLE, 10, 75, 460, 25, hwnd, (HMENU)ID_AUDIO_ALERT_LABEL, NULL, NULL);
             // New Movement Status Label
             hMovementStatusLabel = CreateWindowW(L"STATIC", L"Movement: Idle", WS_CHILD | WS_VISIBLE, 10, 90, 460, 25, hwnd, (HMENU)ID_MOVEMENT_STATUS_LABEL, NULL, NULL);
+            // --- NEW: Profile ComboBox Creation ---
+            hProfileComboBox = CreateWindowW(WC_COMBOBOXW, L"",
+                                             CBS_DROPDOWNLIST | CBS_HASSTRINGS | WS_CHILD | WS_OVERLAPPED | WS_VISIBLE,
+                                             170, 10, 300, 200, hwnd, (HMENU)ID_PROFILE_COMBOBOX, NULL, NULL);
+            populateProfileComboBox(); // Fill the ComboBox with weapon profiles
 
             // --- Font Setup ---
             HFONT hFont = CreateFontW(14,0,0,0,FW_NORMAL,0,0,0,ANSI_CHARSET,OUT_DEFAULT_PRECIS,CLIP_DEFAULT_PRECIS,DEFAULT_QUALITY,DEFAULT_PITCH | FF_SWISS, L"Arial");
             SendMessage(hListBox, WM_SETFONT, (WPARAM)hFont, TRUE);
             SendMessage(hStatusLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
-            SendMessage(hProfileLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
             SendMessage(hToggleButton, WM_SETFONT, (WPARAM)hFont, TRUE);
             SendMessage(hAnalyticsLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
             SendMessage(hAudioAlertLabel, WM_SETFONT, (WPARAM)hFont, TRUE);
             SendMessage(hMovementStatusLabel, WM_SETFONT, (WPARAM)hFont, TRUE); // Set font
-            
+            SendMessage(hProfileComboBox, WM_SETFONT, (WPARAM)hFont, TRUE); // Set font for ComboBox
+                        
             guiReady = true;
             break;
         }
@@ -141,13 +146,25 @@ LRESULT CALLBACK EnhancedWindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM 
             }
             return DefWindowProc(hwnd, uMsg, wParam, lParam);
         }
-        case WM_COMMAND:
-            if (LOWORD(wParam) == ID_TOGGLE_BUTTON) {
-                g_assistEnabled = !g_assistEnabled;
-                SetWindowTextA(hToggleButton, g_assistEnabled ? "Assists: ON" : "Assists: OFF");
-                logMessage(g_assistEnabled ? "Assists Enabled" : "Assists Disabled");
+        case WM_COMMAND: {
+            if (HIWORD(wParam) == CBN_SELCHANGE) {
+                // Check if the notification is from our ComboBox
+                if (LOWORD(wParam) == ID_PROFILE_COMBOBOX) {
+                    int selectedIndex = SendMessage(hProfileComboBox, (UINT)CB_GETCURSEL, (WPARAM)0, (LPARAM)0);
+                    if (selectedIndex != CB_ERR) {
+                        g_performanceOpt->addTask([selectedIndex](){
+                            switchProfile(selectedIndex);
+                        });
+                    }
+                }
             }
+
+            g_assistEnabled = !g_assistEnabled;
+            SetWindowTextA(hToggleButton, g_assistEnabled ? "Assists: ON" : "Assists: OFF");
+            logMessage(g_assistEnabled ? "Assists Enabled" : "Assists Disabled");
+
             break;
+        }    
         case WM_LOG_MESSAGE: {
             std::lock_guard<std::mutex> lock(logMutex);
             while (!logQueue.empty()) {
@@ -203,13 +220,6 @@ void enhancedGuiThread() {
     guiReady = false;
 }
 
-void updateProfileLabel() {
-    if (hProfileLabel && guiReady && !g_weaponProfiles.empty()) {
-        std::string profileText = "Profile: " + g_weaponProfiles[g_activeProfileIndex].name;
-        SetWindowTextA(hProfileLabel, profileText.c_str());
-    }
-}
-
 void postUpdateAnalytics() {
     if (guiReady.load() && g_hWnd) {
         {
@@ -240,5 +250,23 @@ void postUpdateMovementStatus(const std::string& status_text) {
             g_movement_status_buffer = status_text;
         }
         PostMessage(g_hWnd, WM_UPDATE_MOVEMENT_STATUS, 0, 0);
+    }
+}
+
+void populateProfileComboBox() {
+    if (hProfileComboBox && !g_weaponProfiles.empty()) {
+        for (const auto& profile : g_weaponProfiles) {
+            int len;
+            int slength = (int)profile.name.length() + 1;
+            len = MultiByteToWideChar(CP_ACP, 0, profile.name.c_str(), slength, 0, 0); 
+            wchar_t* buf = new wchar_t[len];
+            MultiByteToWideChar(CP_ACP, 0, profile.name.c_str(), slength, buf, len);
+            std::wstring wstr(buf);
+            delete[] buf;
+            
+            SendMessageW(hProfileComboBox, (UINT)CB_ADDSTRING, (WPARAM)0, (LPARAM)wstr.c_str());
+        }
+        // Set the initial selection
+        SendMessage(hProfileComboBox, CB_SETCURSEL, (WPARAM)g_activeProfileIndex.load(), (LPARAM)0);
     }
 }

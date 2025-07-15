@@ -135,6 +135,7 @@ public:
     POINT getPredictedTarget(double humanAccuracy = 1.0);
     double getPredictionConfidence();
     POINT getTargetVelocity();
+    POINT getAcceleration();
     double getUserMouseVelocity() const;
     POINT getRawMouseDelta();
 };

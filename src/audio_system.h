@@ -15,8 +15,8 @@
 #include <memory>
 #include <complex>
 
-#include <portaudio.h>
-#include <fftw3.h>
+#include <../portaudio/include/portaudio.h>
+#include <../fftw3/api/fftw3.h>
 
 // FIX: Wrap the C-style array 'fftwf_complex' in a C++ struct.
 // std::vector cannot correctly handle elements that are raw C-style arrays.

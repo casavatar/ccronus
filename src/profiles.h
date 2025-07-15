@@ -25,11 +25,9 @@ public:
     std::vector<int> recoilPattern;
     int fireDelayBase;
     int fireDelayVariance;
-    // DEPRECATED: pid_kp, pid_ki, pid_kd are replaced by pid_states
-    // We keep them for now to avoid breaking existing profiles, but new logic will ignore them.
-    double pid_kp, pid_ki, pid_kd; 
-    std::map<std::string, PIDParams> pid_states; // NEW: Holds PID settings for different movement states
-    double smoothingFactor;
+    double smoothingFactor; // Smoothing factor for the profile
+    double prediction_aggressiveness; // New field for prediction aggressiveness
+    std::map<std::string, PIDParams> pid_states;
 };
 
 void switchProfile(int profileIndex);

@@ -98,6 +98,17 @@ void handleEnhancedKeyPress(int vk) {
     if(ctrlPressed) current_mod = VK_CONTROL;
     else if(altPressed) current_mod = VK_LMENU;
     
+    // --- MODIFIED: Profile Switching Logic with Alt modifier ---
+    if (altPressed && (vk >= '1' && vk <= '9')) {
+        int profileIndex = vk - '1';
+        if (static_cast<size_t>(profileIndex) < g_weaponProfiles.size()) {
+            g_performanceOpt->addTask([profileIndex](){
+                switchProfile(profileIndex);
+            });
+            return;
+        }
+    }
+
     // ... (System and profile switching keys)
 
     if (vk == g_keybindings.contextual_movement_assist_vk && current_mod == g_keybindings.contextual_movement_assist_mod) {
