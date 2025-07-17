@@ -1,0 +1,393 @@
+{
+  "_metadata": {
+    "title": "Tactical Aim Assist - Main Configuration",
+    "description": "Complete configuration file for the Tactical Aim Assist system",
+    "version": "3.1.8",
+    "created": "2025-07-17T15:30:45.123Z",
+    "last_modified": "2025-07-17T15:30:45.123Z",
+    "schema_version": "1.0",
+    "compatibility": {
+      "min_version": "3.0.0",
+      "max_version": "4.0.0"
+    },
+    "checksum": "SHA256:1234567890abcdef",
+    "author": "ingekastel",
+    "license": "GNU General Public License v3.0"
+  },
+  
+  "general": {
+    "assist_enabled": false,
+    "debug_mode": false,
+    "adaptive_smoothing": true,
+    "audio_alerts": true,
+    "verbose_logging": false,
+    "monitor_offset_x": 0,
+    "monitor_offset_y": 0,
+    "dpi_scale": 1.0,
+    "auto_save_config": true,
+    "config_save_interval": 300,
+    "language": "en_US",
+    "theme": "dark",
+    "first_run": true,
+    "eula_accepted": false,
+    "telemetry_enabled": false
+  },
+  
+  "display": {
+    "width": 1920,
+    "height": 1080,
+    "target_monitor": 1,
+    "refresh_rate": 60,
+    "vsync": true,
+    "fullscreen": false,
+    "borderless": true,
+    "color_depth": 32,
+    "aspect_ratio": "16:9",
+    "gamma": 1.0,
+    "brightness": 1.0,
+    "contrast": 1.0,
+    "hdr_enabled": false,
+    "multi_monitor_mode": "single",
+    "monitor_detection": "automatic"
+  },
+  
+  "aim": {
+    "sensitivity": 1.0,
+    "smoothing_factor": 0.75,
+    "aim_fov": 100.0,
+    "trigger_fov": 50.0,
+    "scan_fov": 200.0,
+    "prediction_time_ms": 50.0,
+    "reaction_delay_ms": 100.0,
+    "trigger_delay_ms": 50.0,
+    "lock_time_ms": 200.0,
+    "trigger_bot": false,
+    "silent_aim": false,
+    "auto_aim": false,
+    "recoil_compensation": true,
+    "adaptive_sensitivity": true,
+    "prediction_enabled": true,
+    "max_adjustment_distance": 500.0,
+    "min_confidence_threshold": 0.5,
+    "head_confidence_threshold": 0.7,
+    "body_confidence_threshold": 0.6,
+    "limb_confidence_threshold": 0.4,
+    "anti_detection_level": "medium",
+    "humanization": {
+      "enabled": true,
+      "jitter_amount": 0.1,
+      "delay_variation": 0.05,
+      "path_randomization": 0.1,
+      "micro_corrections": true
+    },
+    "targeting_priority": {
+      "head": 3.0,
+      "body": 2.0,
+      "limbs": 1.0
+    }
+  },
+  
+  "performance": {
+    "max_fps": 240,
+    "target_fps": 60,
+    "frame_limit_enabled": true,
+    "vsync_override": false,
+    "enable_simd": true,
+    "enable_multithreading": true,
+    "thread_count": 0,
+    "process_priority": "normal",
+    "cpu_affinity": "auto",
+    "enable_monitoring": true,
+    "enable_profiling": false,
+    "track_memory": true,
+    "monitor_cpu": true,
+    "track_fps": true,
+    "file_output": true,
+    "simd_optimization": true,
+    "memory_optimization": true,
+    "cache_optimization": true,
+    "gpu_acceleration": false,
+    "low_latency_mode": false,
+    "power_saving_mode": false,
+    "thermal_throttling": true,
+    "benchmarking": {
+      "enabled": false,
+      "duration_seconds": 60,
+      "auto_optimize": false,
+      "save_results": true
+    }
+  },
+  
+  "hotkeys": {
+    "toggle_key": "0x70",
+    "toggle_key_name": "F1",
+    "hold_key": "0x71",
+    "hold_key_name": "F2",
+    "mouse_button": 1,
+    "mouse_button_name": "Left Click",
+    "hold_mode": false,
+    "emergency_stop": {
+      "key": "0x1B",
+      "key_name": "Escape",
+      "modifier": "0x0002",
+      "modifier_name": "Ctrl"
+    },
+    "profile_switching": {
+      "next_profile": "0x74",
+      "next_profile_name": "F5",
+      "prev_profile": "0x75",
+      "prev_profile_name": "F6"
+    },
+    "adjustment_keys": {
+      "sensitivity_up": "0xBB",
+      "sensitivity_up_name": "Plus",
+      "sensitivity_down": "0xBD",
+      "sensitivity_down_name": "Minus",
+      "fov_up": "0x26",
+      "fov_up_name": "Up Arrow",
+      "fov_down": "0x28",
+      "fov_down_name": "Down Arrow"
+    },
+    "debug_keys": {
+      "debug_toggle": "0x76",
+      "debug_toggle_name": "F7",
+      "overlay_toggle": "0x77",
+      "overlay_toggle_name": "F8",
+      "stats_reset": "0x78",
+      "stats_reset_name": "F9"
+    }
+  },
+  
+  "input": {
+    "mouse_sensitivity": 1.0,
+    "polling_rate_hz": 1000,
+    "raw_input": true,
+    "mouse_acceleration": false,
+    "mouse_precision": true,
+    "pointer_precision": false,
+    "enhance_pointer_precision": false,
+    "input_lag_reduction": true,
+    "input_buffering": false,
+    "input_prediction": true,
+    "movement_smoothing": 0.8,
+    "scroll_sensitivity": 1.0,
+    "double_click_speed": 500,
+    "drag_threshold": 4,
+    "gesture_recognition": false,
+    "touchpad_support": false,
+    "controller_support": false
+  },
+  
+  "gui": {
+    "update_interval_ms": 50,
+    "show_performance_overlay": false,
+    "transparency": 0.9,
+    "always_on_top": false,
+    "minimize_to_tray": true,
+    "start_minimized": false,
+    "close_to_tray": true,
+    "show_splash_screen": true,
+    "animation_enabled": true,
+    "sound_effects": true,
+    "visual_effects": true,
+    "font_size": 12,
+    "font_family": "Segoe UI",
+    "color_scheme": "dark",
+    "window_opacity": 1.0,
+    "blur_background": false,
+    "rounded_corners": true,
+    "shadow_effects": true,
+    "tooltips_enabled": true,
+    "status_bar": true,
+    "toolbar": true,
+    "sidebar": true,
+    "main_window": {
+      "width": 800,
+      "height": 600,
+      "x": -1,
+      "y": -1,
+      "maximized": false,
+      "resizable": true
+    },
+    "overlay": {
+      "enabled": false,
+      "position": "top_right",
+      "size": "medium",
+      "opacity": 0.8,
+      "auto_hide": true,
+      "hide_delay": 3000
+    }
+  },
+  
+  "memory_pools": {
+    "enable_pooling": true,
+    "initial_pool_size": 32,
+    "max_pool_size": 1024,
+    "growth_factor": 2,
+    "shrink_factor": 0.5,
+    "allow_expansion": true,
+    "auto_cleanup": true,
+    "cleanup_interval": 60,
+    "fragmentation_threshold": 0.3,
+    "preallocation": true,
+    "pool_types": {
+      "target_pool": {
+        "size": 256,
+        "element_size": 128
+      },
+      "movement_pool": {
+        "size": 512,
+        "element_size": 64
+      },
+      "frame_pool": {
+        "size": 128,
+        "element_size": 1024
+      }
+    }
+  },
+  
+  "detection": {
+    "confidence_threshold": 0.5,
+    "nms_threshold": 0.4,
+    "detection_frequency": 60,
+    "max_detections": 10,
+    "filter_duplicates": true,
+    "temporal_filtering": true,
+    "spatial_filtering": true,
+    "kalman_filtering": true,
+    "prediction_frames": 3,
+    "tracking_enabled": true,
+    "tracking_timeout": 1000,
+    "occlusion_handling": true,
+    "multi_scale_detection": true,
+    "roi_enabled": false,
+    "roi_x": 0,
+    "roi_y": 0,
+    "roi_width": 1920,
+    "roi_height": 1080
+  },
+  
+  "security": {
+    "anti_detection": {
+      "enabled": true,
+      "level": "medium",
+      "randomization": true,
+      "delay_variation": true,
+      "pattern_breaking": true,
+      "signature_masking": true
+    },
+    "process_protection": {
+      "hide_process": false,
+      "anti_debugging": false,
+      "code_obfuscation": false,
+      "memory_protection": true
+    },
+    "logging": {
+      "log_level": "info",
+      "log_to_file": true,
+      "log_to_console": false,
+      "max_log_size": 10485760,
+      "log_rotation": true,
+      "encrypt_logs": false
+    }
+  },
+  
+  "network": {
+    "check_updates": true,
+    "auto_update": false,
+    "update_channel": "stable",
+    "proxy_enabled": false,
+    "proxy_host": "",
+    "proxy_port": 0,
+    "proxy_username": "",
+    "proxy_password": "",
+    "timeout_seconds": 30,
+    "retry_attempts": 3,
+    "ssl_verification": true,
+    "user_agent": "TacticalAimAssist/3.1.8"
+  },
+  
+  "plugins": {
+    "enabled": false,
+    "auto_load": true,
+    "plugin_directory": "./plugins/",
+    "sandbox_mode": true,
+    "api_version": "1.0",
+    "loaded_plugins": [],
+    "disabled_plugins": [],
+    "plugin_settings": {}
+  },
+  
+  "advanced": {
+    "enable_simd": true,
+    "enable_multithreading": true,
+    "verbose_logging": false,
+    "show_metrics": false,
+    "experimental_features": false,
+    "developer_mode": false,
+    "debug_output": false,
+    "crash_reporting": true,
+    "error_recovery": true,
+    "safe_mode": false,
+    "compatibility_mode": false,
+    "legacy_support": false,
+    "beta_features": false,
+    "telemetry": {
+      "enabled": false,
+      "anonymous": true,
+      "performance_data": false,
+      "error_reports": true,
+      "usage_statistics": false
+    }
+  },
+  
+  "profiles": {
+    "active_profile": 0,
+    "auto_switch": false,
+    "game_detection": false,
+    "profile_count": 1,
+    "default_profile": "Default",
+    "backup_profiles": true,
+    "profile_sync": false,
+    "cloud_sync": false
+  },
+  
+  "statistics": {
+    "enable_tracking": true,
+    "track_accuracy": true,
+    "track_performance": true,
+    "track_usage": true,
+    "save_statistics": true,
+    "statistics_file": "./stats/statistics.json",
+    "reset_on_restart": false,
+    "session_tracking": true,
+    "daily_stats": true,
+    "weekly_stats": true,
+    "monthly_stats": true,
+    "export_format": "json"
+  },
+  
+  "notifications": {
+    "enabled": true,
+    "sound_enabled": true,
+    "visual_enabled": true,
+    "system_notifications": true,
+    "status_updates": true,
+    "error_notifications": true,
+    "warning_notifications": true,
+    "info_notifications": false,
+    "notification_duration": 5000,
+    "notification_position": "bottom_right",
+    "notification_opacity": 0.9
+  },
+  
+  "_validation": {
+    "last_validated": "2025-07-17T15:30:45.123Z",
+    "validation_version": "3.1.8",
+    "validation_status": "valid",
+    "error_count": 0,
+    "warning_count": 0,
+    "auto_fix_applied": false,
+    "checksum": "SHA256:abcdef1234567890"
+  }
+}

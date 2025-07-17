@@ -1,0 +1,61 @@
+{
+  "_user_info": {
+    "title": "Personal Configuration",
+    "user": "User",
+    "created": "2025-07-17T15:30:45.123Z",
+    "description": "Customized settings for optimal performance"
+  },
+  
+  "general": {
+    "assist_enabled": true,
+    "debug_mode": false,
+    "adaptive_smoothing": true,
+    "audio_alerts": false,
+    "verbose_logging": false
+  },
+  
+  "display": {
+    "width": 2560,
+    "height": 1440,
+    "target_monitor": 1,
+    "refresh_rate": 144,
+    "vsync": false
+  },
+  
+  "aim": {
+    "sensitivity": 1.2,
+    "smoothing_factor": 0.8,
+    "aim_fov": 80.0,
+    "trigger_fov": 40.0,
+    "prediction_time_ms": 35.0,
+    "trigger_bot": false,
+    "silent_aim": false,
+    "anti_detection_level": "high"
+  },
+  
+  "performance": {
+    "max_fps": 144,
+    "enable_simd": true,
+    "enable_multithreading": true,
+    "enable_monitoring": false
+  },
+  
+  "hotkeys": {
+    "toggle_key": "0x12",
+    "hold_key": "0x11",
+    "mouse_button": 4,
+    "hold_mode": true
+  },
+  
+  "input": {
+    "mouse_sensitivity": 1.5,
+    "polling_rate_hz": 1000,
+    "raw_input": true
+  },
+  
+  "gui": {
+    "update_interval_ms": 33,
+    "show_performance_overlay": true,
+    "transparency": 0.7
+  }
+}

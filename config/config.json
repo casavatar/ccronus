@@ -1,0 +1,86 @@
+{
+  "general": {
+    "assist_enabled": true,
+    "debug_mode": false,
+    "adaptive_smoothing": true,
+    "audio_alerts": true,
+    "sensitivity_multiplier": 1.0,
+    "monitor_offset_x": 0,
+    "monitor_offset_y": 0,
+    "dpi_scale": 1.0
+  },
+  "settings": {
+    "target_monitor": 2,
+    "monitor_width": 1024,
+    "monitor_height": 768
+  },
+  "keybindings": {
+    "toggle_assist": "F1",
+    "change_profile": "F2",
+    "toggle_debug": "F3",
+    "show_config": "F4",
+    "reload_config": "F5",
+    "show_stats": "F12",
+    "exit": "ESCAPE",
+    "emergency_stop": "PAUSE",
+    "toggle_overlay": "F11",
+    "smart_sprint_left": "ALT+A",
+    "smart_sprint_right": "ALT+D",
+    "predictive_slide": "ALT+C",
+    "contextual_movement_assist": "CTRL+SPACE",
+    "dive_back": "ALT+S",
+    "corner_bounce_left": "XBUTTON1",
+    "corner_bounce_right": "XBUTTON2",
+    "cutback": "ALT+XBUTTON1",
+    "dropshot_supine_slide": "ALT+XBUTTON2",
+    "slide_cancel_directional": "SHIFT+XBUTTON1",
+    "dive_directional_intelligent": "SHIFT+XBUTTON2",
+    "omnidirectional_slide": "CTRL+C",
+    "movement_test": "F10",
+    "cycle_weapon_profile": "TAB",
+    "quick_scope_assist": "SHIFT+RBUTTON",
+    "recoil_pattern_toggle": "CTRL+R",
+    "performance_overlay": "F9",
+    "memory_cleanup": "CTRL+SHIFT+M",
+    "benchmark_mode": "CTRL+ALT+B"
+  },
+  "performance": {
+    "enable_monitoring": true,
+    "enable_profiling": true,
+    "track_memory": true,
+    "monitor_cpu": true,
+    "track_fps": true,
+    "file_output": true,
+    "realtime_display": false,
+    "max_samples": 50000,
+    "max_frame_time_ms": 16.67,
+    "max_memory_mb": 200.0,
+    "max_cpu_percent": 80.0,
+    "simd_optimization": true,
+    "max_fps": 240
+  },
+  "aim_assist": {
+    "prediction_time_ms": 50,
+    "smoothing_factor": 0.8,
+    "max_adjustment_distance": 500,
+    "anti_detection_level": "medium",
+    "min_confidence_threshold": 0.3
+  },
+  "memory_pools": {
+    "enable_pooling": true,
+    "initial_pool_size": 32,
+    "max_pool_size": 1024,
+    "growth_factor": 2,
+    "allow_expansion": true
+  },
+  "input": {
+    "mouse_sensitivity": 1.0,
+    "polling_rate_hz": 1000,
+    "raw_input": true
+  },
+  "gui": {
+    "update_interval_ms": 50,
+    "show_performance_overlay": false,
+    "transparency": 0.9
+  }
+}

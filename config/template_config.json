@@ -1,0 +1,71 @@
+{
+  "_template_info": {
+    "title": "Tactical Aim Assist Configuration Template",
+    "description": "Template file for creating custom configurations",
+    "version": "3.1.8",
+    "created": "2025-07-17T15:30:45.123Z",
+    "usage": "Copy this file and modify values as needed",
+    "note": "All values shown are defaults and safe to use"
+  },
+  
+  "general": {
+    "assist_enabled": false,
+    "debug_mode": false,
+    "adaptive_smoothing": true,
+    "audio_alerts": true,
+    "verbose_logging": false
+  },
+  
+  "display": {
+    "width": 1920,
+    "height": 1080,
+    "target_monitor": 1,
+    "refresh_rate": 60,
+    "vsync": true
+  },
+  
+  "aim": {
+    "sensitivity": 1.0,
+    "smoothing_factor": 0.75,
+    "aim_fov": 100.0,
+    "trigger_fov": 50.0,
+    "prediction_time_ms": 50.0,
+    "trigger_bot": false,
+    "silent_aim": false,
+    "anti_detection_level": "medium"
+  },
+  
+  "performance": {
+    "max_fps": 240,
+    "enable_simd": true,
+    "enable_multithreading": true,
+    "enable_monitoring": true
+  },
+  
+  "hotkeys": {
+    "toggle_key": "0x70",
+    "hold_key": "0x71",
+    "mouse_button": 1,
+    "hold_mode": false
+  },
+  
+  "input": {
+    "mouse_sensitivity": 1.0,
+    "polling_rate_hz": 1000,
+    "raw_input": true
+  },
+  
+  "gui": {
+    "update_interval_ms": 50,
+    "show_performance_overlay": false,
+    "transparency": 0.9
+  },
+  
+  "memory_pools": {
+    "enable_pooling": true,
+    "initial_pool_size": 32,
+    "max_pool_size": 1024,
+    "growth_factor": 2,
+    "allow_expansion": true
+  }
+}
