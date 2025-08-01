@@ -1,9 +1,10 @@
-// event_system.h
-// description: Event-driven system for efficient GUI updates and inter-component communication
-// developer: ingekastel
+// event_system.h - FINAL CORRECTED VERSION v3.1.1
+// description: Event-driven system for efficient GUI updates and inter-component communication.
+//              This version includes a comprehensive EventType list and a non-exception-throwing getData method.
+// developer: ingekastel & Asistente de Programación
 // license: GNU General Public License v3.0
-// version: 3.0.0 - New Module
-// date: 2025-07-16
+// version: 3.1.1 - Corrected exception handling for compatibility.
+// date: 2025-07-21
 // project: Tactical Aim Assist
 
 #pragma once
@@ -35,33 +36,75 @@ enum class EventPriority {
 };
 
 enum class EventType {
-    // System events
+    // --- System Events ---
     SystemStateChanged,
+    SystemShutdownRequested,
+    SystemEmergencyStop,
+    PrintStatusRequested,
+    ResetStatsRequested,
+
+    // --- Input Events ---
+    KeyPressed,
+    MouseMoved,
+
+    // --- Gameplay Action Events ---
+    ToggleAimAssistRequested,
+    ToggleTriggerBotRequested,
+    ToggleSilentAimRequested,
+    TogglePredictionRequested,
+    ToggleRecoilCompRequested,
+    MovementActionRequested,
+    ExecuteMouseMovement,
+    ExecutePrimaryFire,
+
+    // --- Profile & Settings Events ---
     ConfigurationChanged,
+    CycleProfileNextRequested,
+    CycleProfilePrevRequested,
+    ProfileChangeRequested,
     
-    // Player events
-    PlayerMovementChanged,
-    WeaponProfileChanged,
-    StatsUpdated,
-    
-    // GUI events
+    // --- Settings Adjustment Events ---
+    IncreaseSensitivityRequested,
+    DecreaseSensitivityRequested,
+    IncreaseFovRequested,
+    DecreaseFovRequested,
+    IncreaseSmoothingRequested,
+    DecreaseSmoothingRequested,
+
+    // --- GUI Events ---
     GUIUpdateRequested,
+    StateChanged_AimAssist,
+    StateChanged_WeaponProfile,
+    StateChanged_PlayerMovement,
+    AnalyticsUpdate,
     WindowResized,
     ControlValueChanged,
     
-    // Audio events
+    // --- Debug Events ---
+    ToggleDebugModeRequested,
+    ToggleTestModeRequested,
+
+    // --- Generic Update Event ---
+    FrameUpdate,
+
+    // --- Player events ---
+    PlayerMovementChanged,
+    WeaponProfileChanged,
+    StatsUpdated,
+
+    // --- Audio events ---
     AudioAlertGenerated,
     AudioStateChanged,
-    
-    // Input events
+
+    // --- Input events ---
     KeybindingTriggered,
     MouseActivityDetected,
-    
-    // Performance events
+
+    // --- Performance events ---
     PerformanceMetricsUpdated,
     MemoryUsageChanged,
-    
-    // Custom events
+
+    // --- Custom events ---
     Custom
 };
 
@@ -83,18 +126,24 @@ struct BaseEvent {
         data = value;
     }
     
+    /**
+     * @brief Safely gets the data associated with the event.
+     * CORRECTED: This version does not throw exceptions to support builds with -fno-exceptions.
+     * It checks the type before casting. If the type is incorrect, it returns a default-constructed object.
+     * @return The data cast to type T, or a default T if the cast is invalid.
+     */
     template<typename T>
     T getData() const {
-        try {
+        if (hasDataType<T>()) {
             return std::any_cast<T>(data);
-        } catch (const std::bad_any_cast& e) {
-            throw std::runtime_error("Invalid event data type requested");
         }
+        // Return a default-constructed object if the type is wrong, avoiding a crash.
+        return T{};
     }
     
     template<typename T>
     bool hasDataType() const {
-        return std::type_index(data.type()) == std::type_index(typeid(T));
+        return data.has_value() && (data.type() == typeid(T));
     }
 };
 
@@ -132,6 +181,13 @@ struct PerformanceMetricsEvent {
         : cpu_usage(cpu), memory_usage_mb(mem), fps(f), response_time(rt) {}
 };
 
+struct MouseMovedEventData {
+    int new_x = 0;
+    int new_y = 0;
+    int delta_x = 0;
+    int delta_y = 0;
+};
+
 // =============================================================================
 // EVENT HANDLER TYPES
 // =============================================================================
@@ -142,107 +198,107 @@ using EventFilter = std::function<bool(const BaseEvent&)>;
 // EVENT SYSTEM CLASS
 // =============================================================================
 class EventSystem {
-public:
-    // Constructor/Destructor
-    EventSystem();
-    ~EventSystem();
-    
-    // Core functionality
-    void initialize();
-    void shutdown();
-    bool isRunning() const;
-    
-    // Event publishing
-    void publishEvent(const BaseEvent& event);
-    void publishEvent(EventType type, EventPriority priority = EventPriority::Normal,
-                     const std::string& source = "");
-    
-    template<typename T>
-    void publishEventWithData(EventType type, const T& data, 
-                             EventPriority priority = EventPriority::Normal,
-                             const std::string& source = "");
-    
-    // Specialized event publishers
-    void publishGUIUpdate(const std::string& component, 
-                         const std::unordered_map<std::string, std::string>& values,
-                         bool force_refresh = false);
-    void publishStateChange(const std::string& category, const std::string& old_value, 
-                           const std::string& new_value);
-    void publishPerformanceMetrics(const PerformanceMetricsEvent& metrics);
-    
-    // Event subscription
-    void subscribe(EventType type, const std::string& handler_name, EventHandler handler);
-    void subscribe(EventType type, const std::string& handler_name, EventHandler handler, EventFilter filter);
-    void unsubscribe(EventType type, const std::string& handler_name);
-    void unsubscribeAll(const std::string& handler_name);
-    
-    // Batch operations
-    void publishBatch(const std::vector<BaseEvent>& events);
-    std::vector<BaseEvent> consumePendingEvents(EventType type);
-    
-    // Queue management
-    size_t getQueueSize() const;
-    size_t getQueueSize(EventType type) const;
-    void clearQueue();
-    void clearQueue(EventType type);
-    
-    // Performance and diagnostics
-    std::vector<std::string> getDiagnosticInfo() const;
-    void setMaxQueueSize(size_t max_size);
-    void setEventTimeoutMs(uint32_t timeout_ms);
-    
-    // Priority processing
-    void setHighPriorityMode(bool enable);
-    bool isHighPriorityMode() const;
-    
-    // Thread control
-    void pauseProcessing();
-    void resumeProcessing();
-    bool isProcessingPaused() const;
-    
-private:
-    // Core state
-    std::atomic<bool> m_initialized{false};
-    std::atomic<bool> m_running{false};
-    std::atomic<bool> m_paused{false};
-    std::atomic<bool> m_high_priority_mode{false};
-    
-    // Configuration
-    size_t m_max_queue_size = 1000;
-    uint32_t m_event_timeout_ms = 5000;
-    
-    // Event queue and processing
-    std::priority_queue<std::shared_ptr<BaseEvent>, 
-                       std::vector<std::shared_ptr<BaseEvent>>,
-                       std::function<bool(const std::shared_ptr<BaseEvent>&, 
-                                        const std::shared_ptr<BaseEvent>&)>> m_event_queue;
-    mutable std::mutex m_queue_mutex;
-    std::condition_variable m_queue_cv;
-    
-    // Event handlers
-    std::unordered_map<EventType, std::unordered_map<std::string, std::pair<EventHandler, EventFilter>>> m_handlers;
-    mutable std::shared_mutex m_handlers_mutex;
-    
-    // Processing thread
-    std::unique_ptr<std::thread> m_processing_thread;
-    std::atomic<bool> m_should_stop{false};
-    
-    // Statistics
-    mutable std::mutex m_stats_mutex;
-    std::unordered_map<EventType, uint64_t> m_event_counts;
-    std::unordered_map<EventType, std::chrono::milliseconds> m_processing_times;
-    
-    // Helper methods
-    void processingLoop();
-    void processEvent(std::shared_ptr<BaseEvent> event);
-    bool isEventExpired(const BaseEvent& event) const;
-    void updateStatistics(EventType type, std::chrono::milliseconds processing_time);
-    void cleanupExpiredEvents();
-    
-    // Priority queue comparator
-    static bool eventPriorityComparator(const std::shared_ptr<BaseEvent>& a, 
-                                       const std::shared_ptr<BaseEvent>& b);
-};
+    public:
+        // Constructor/Destructor
+        EventSystem();
+        ~EventSystem();
+        
+        // Core functionality
+        void initialize();
+        void shutdown();
+        bool isRunning() const;
+        
+        // Event publishing
+        void publishEvent(const BaseEvent& event);
+        void publishEvent(EventType type, EventPriority priority = EventPriority::Normal,
+                         const std::string& source = "");
+        
+        template<typename T>
+        void publishEventWithData(EventType type, const T& data, 
+                                 EventPriority priority = EventPriority::Normal,
+                                 const std::string& source = "");
+        
+        // Specialized event publishers
+        void publishGUIUpdate(const std::string& component, 
+                             const std::unordered_map<std::string, std::string>& values,
+                             bool force_refresh = false);
+        void publishStateChange(const std::string& category, const std::string& old_value, 
+                               const std::string& new_value);
+        void publishPerformanceMetrics(const PerformanceMetricsEvent& metrics);
+        
+        // Event subscription
+        void subscribe(EventType type, const std::string& handler_name, EventHandler handler);
+        void subscribe(EventType type, const std::string& handler_name, EventHandler handler, EventFilter filter);
+        void unsubscribe(EventType type, const std::string& handler_name);
+        void unsubscribeAll(const std::string& handler_name);
+        
+        // Batch operations
+        void publishBatch(const std::vector<BaseEvent>& events);
+        std::vector<BaseEvent> consumePendingEvents(EventType type);
+        
+        // Queue management
+        size_t getQueueSize() const;
+        size_t getQueueSize(EventType type) const;
+        void clearQueue();
+        void clearQueue(EventType type);
+        
+        // Performance and diagnostics
+        std::vector<std::string> getDiagnosticInfo() const;
+        void setMaxQueueSize(size_t max_size);
+        void setEventTimeoutMs(uint32_t timeout_ms);
+        
+        // Priority processing
+        void setHighPriorityMode(bool enable);
+        bool isHighPriorityMode() const;
+        
+        // Thread control
+        void pauseProcessing();
+        void resumeProcessing();
+        bool isProcessingPaused() const;
+        
+    private:
+        // Core state
+        std::atomic<bool> m_initialized{false};
+        std::atomic<bool> m_running{false};
+        std::atomic<bool> m_paused{false};
+        std::atomic<bool> m_high_priority_mode{false};
+        
+        // Configuration
+        size_t m_max_queue_size = 1000;
+        uint32_t m_event_timeout_ms = 5000;
+        
+        // Event queue and processing
+        std::priority_queue<std::shared_ptr<BaseEvent>, 
+                           std::vector<std::shared_ptr<BaseEvent>>,
+                           std::function<bool(const std::shared_ptr<BaseEvent>&, 
+                                            const std::shared_ptr<BaseEvent>&)>> m_event_queue;
+        mutable std::mutex m_queue_mutex;
+        std::condition_variable m_queue_cv;
+        
+        // Event handlers
+        std::unordered_map<EventType, std::unordered_map<std::string, std::pair<EventHandler, EventFilter>>> m_handlers;
+        mutable std::shared_mutex m_handlers_mutex;
+        
+        // Processing thread
+        std::unique_ptr<std::thread> m_processing_thread;
+        std::atomic<bool> m_should_stop{false};
+        
+        // Statistics
+        mutable std::mutex m_stats_mutex;
+        std::unordered_map<EventType, uint64_t> m_event_counts;
+        std::unordered_map<EventType, std::chrono::milliseconds> m_processing_times;
+        
+        // Helper methods
+        void processingLoop();
+        void processEvent(std::shared_ptr<BaseEvent> event);
+        bool isEventExpired(const BaseEvent& event) const;
+        void updateStatistics(EventType type, std::chrono::milliseconds processing_time);
+        void cleanupExpiredEvents();
+        
+        // Priority queue comparator
+        static bool eventPriorityComparator(const std::shared_ptr<BaseEvent>& a, 
+                                           const std::shared_ptr<BaseEvent>& b);
+    };
 
 // =============================================================================
 // TEMPLATE IMPLEMENTATIONS
@@ -256,12 +312,15 @@ void EventSystem::publishEventWithData(EventType type, const T& data,
 }
 
 // =============================================================================
-// GLOBAL EVENT SYSTEM INSTANCE
+// GLOBAL EVENT SYSTEM INSTANCE & API
 // =============================================================================
 extern std::unique_ptr<EventSystem> g_eventSystem;
+bool initializeEventSystem();
+void shutdownEventSystem();
+EventSystem* getEventSystem();
 
 // =============================================================================
-// CONVENIENCE MACROS
+// CONVENIENCE MACROS & HELPERS
 // =============================================================================
 #define EVENT_SYS() (g_eventSystem.get())
 #define PUBLISH_EVENT(type, priority, source) if(EVENT_SYS()) EVENT_SYS()->publishEvent(type, priority, source)
@@ -291,4 +350,4 @@ namespace EventHelpers {
     
     // Input helpers
     void reportKeybindingTriggered(const std::string& keybinding_name);
-}
+} // namespace EventHelpers

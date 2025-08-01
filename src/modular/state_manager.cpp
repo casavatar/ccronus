@@ -1,395 +1,200 @@
-// state_manager.cpp - CORRECTED VERSION v3.0.4
-// description: Implementation of centralized state management system
-// developer: ingekastel
-// license: GNU General Public License v3.0
-// version: 3.0.4 - Fixed PlayerMovementState enum values
-// date: 2025-07-16
+// state_manager.cpp - FINAL CORRECTED VERSION v5.2.0
+// description: Implementation of the centralized state management system.
+// version: 5.2.0 - Aligned with updated globals.h data structures.
+// date: 2025-07-21
 // project: Tactical Aim Assist
 
 #include "state_manager.h"
-#include "globals.h"
 #include <sstream>
-#include <iomanip>
-#include <algorithm>
 
-// =============================================================================
-// GLOBAL INSTANCE
-// =============================================================================
+// Global instance definition
 std::unique_ptr<StateManager> g_stateManager = nullptr;
 
-// =============================================================================
-// CONSTRUCTOR / DESTRUCTOR
-// =============================================================================
-StateManager::StateManager() {
-    m_movement_state_change_time = std::chrono::steady_clock::now();
-    m_last_activity_time = std::chrono::steady_clock::now();
-    m_player_stats.session_start = std::chrono::steady_clock::now();
-    
-    DEBUG_LOG("StateManager constructed");
-}
+StateManager::StateManager() = default;
+StateManager::~StateManager() { shutdown(); }
 
-StateManager::~StateManager() {
-    shutdown();
-    DEBUG_LOG("StateManager destroyed");
-}
-
-// =============================================================================
-// CORE MANAGEMENT
-// =============================================================================
 void StateManager::initialize() {
     std::unique_lock<std::shared_mutex> lock(m_state_mutex);
+    if (m_initialized.load()) return;
     
-    if (m_initialized.load()) {
-        logMessage("WARNING: StateManager already initialized");
-        return;
-    }
-    
-    // Initialize default values
-    m_weapon_context.active_profile_index = 0;
-    m_weapon_context.active_weapon_name = "Default";
-    m_weapon_context.rounds_in_magazine = 30;
-    
-    // Set default config values
-    m_config_values["smoothing_factor"] = "0.85";
-    m_config_values["prediction_aggressiveness"] = "0.75";
-    m_config_values["anti_detection_level"] = "Medium";
-    
-    setSystemState(SystemState::Running);
+    m_appSettings = AppSettings{};
+    m_current_target = TargetInfo{};
+    m_player_movement_state = PlayerMovementState::Stationary;
+    m_cursor_position = { m_appSettings.screen_width / 2, m_appSettings.screen_height / 2 };
+
     m_initialized.store(true);
-    
-    logMessage("StateManager initialized successfully");
-    triggerStateChangeEvent("System", "Initializing", "Running");
+    setSystemState(SystemState::ACTIVE);
+    logMessage("StateManager initialized successfully.");
 }
 
 void StateManager::shutdown() {
     if (!m_initialized.load()) return;
-    
-    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
-    
-    setSystemState(SystemState::Shutting_Down);
-    
-    // Clear callbacks
-    {
-        std::lock_guard<std::mutex> callback_lock(m_callback_mutex);
-        m_callbacks.clear();
-    }
-    
+    setSystemState(SystemState::SHUTTING_DOWN);
     m_initialized.store(false);
-    logMessage("StateManager shutdown completed");
+    logMessage("StateManager shutdown complete.");
 }
 
-bool StateManager::isInitialized() const {
-    return m_initialized.load();
-}
-
-// =============================================================================
-// SYSTEM STATE MANAGEMENT
-// =============================================================================
-SystemState StateManager::getSystemState() const {
-    return m_system_state.load();
-}
+bool StateManager::isInitialized() const { return m_initialized.load(); }
+SystemState StateManager::getSystemState() const { return m_system_state.load(); }
+bool StateManager::isRunning() const { return getSystemState() == SystemState::ACTIVE; }
 
 void StateManager::setSystemState(SystemState state) {
-    SystemState oldState = m_system_state.exchange(state);
-    if (oldState != state) {
-        updateLastActivity();
-        triggerStateChangeEvent("System", systemStateToString(oldState), systemStateToString(state));
-        DEBUG_LOG("System state changed: " + systemStateToString(oldState) + " -> " + systemStateToString(state));
+    SystemState old_state = m_system_state.exchange(state);
+    if (old_state != state) {
+        triggerStateChangeEvent("System", systemStateToString(old_state), systemStateToString(state));
     }
 }
 
-std::string StateManager::getSystemStateString() const {
-    return systemStateToString(getSystemState());
+const AppSettings& StateManager::getAppSettings() const {
+    std::shared_lock<std::shared_mutex> lock(m_state_mutex);
+    return m_appSettings;
 }
 
-// =============================================================================
-// PLAYER STATE MANAGEMENT
-// =============================================================================
+void StateManager::setAppSettings(const AppSettings& settings) {
+    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
+    m_appSettings = settings;
+}
+
+bool StateManager::isAimAssistEnabled() const {
+    std::shared_lock<std::shared_mutex> lock(m_state_mutex);
+    return m_appSettings.assist_enabled;
+}
+
+void StateManager::setAimAssistEnabled(bool enabled) {
+    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
+    if (m_appSettings.assist_enabled != enabled) {
+        bool old_state = m_appSettings.assist_enabled;
+        m_appSettings.assist_enabled = enabled;
+        lock.unlock();
+        triggerStateChangeEvent("AimAssist", old_state ? "Enabled" : "Disabled", enabled ? "Enabled" : "Disabled");
+    }
+}
+
+const Keybindings& StateManager::getKeybindings() const {
+    std::shared_lock<std::shared_mutex> lock(m_state_mutex);
+    return m_appSettings.keybindings;
+}
+
 PlayerMovementState StateManager::getPlayerMovementState() const {
+    // This is atomic, no lock needed
     return m_player_movement_state.load();
 }
 
 void StateManager::setPlayerMovementState(PlayerMovementState state) {
-    PlayerMovementState oldState = m_player_movement_state.exchange(state);
-    if (oldState != state) {
-        std::unique_lock<std::shared_mutex> lock(m_state_mutex);
-        m_movement_state_change_time = std::chrono::steady_clock::now();
-        updateLastActivity();
-        
-        // Use the global function from globals.h
-        triggerStateChangeEvent("PlayerMovement", 
-                               ::playerMovementStateToString(oldState), 
-                               ::playerMovementStateToString(state));
-        
-        DEBUG_LOG("Player movement state changed: " + 
-                 ::playerMovementStateToString(oldState) + " -> " + 
-                 ::playerMovementStateToString(state));
+    PlayerMovementState old_state = m_player_movement_state.exchange(state);
+    if (old_state != state) {
+        triggerStateChangeEvent("PlayerMovement", playerMovementStateToString(old_state), playerMovementStateToString(state));
     }
 }
 
-bool StateManager::isPlayerMoving() const {
-    PlayerMovementState state = getPlayerMovementState();
-    return state != PlayerMovementState::Stationary;
-}
-
-std::chrono::milliseconds StateManager::getMovementDuration() const {
+const TargetInfo& StateManager::getCurrentTarget() const {
     std::shared_lock<std::shared_mutex> lock(m_state_mutex);
-    auto now = std::chrono::steady_clock::now();
-    return std::chrono::duration_cast<std::chrono::milliseconds>(now - m_movement_state_change_time);
+    return m_current_target;
 }
 
-// =============================================================================
-// AIM ASSIST STATE MANAGEMENT
-// =============================================================================
-AimAssistMode StateManager::getAimAssistMode() const {
-    return m_aim_assist_mode.load();
+void StateManager::setCurrentTarget(const TargetInfo& target) {
+    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
+    m_current_target = target;
 }
 
-void StateManager::setAimAssistMode(AimAssistMode mode) {
-    AimAssistMode oldMode = m_aim_assist_mode.exchange(mode);
-    if (oldMode != mode) {
-        updateLastActivity();
-        triggerStateChangeEvent("AimAssist", 
-                               aimAssistModeToString(oldMode), 
-                               aimAssistModeToString(mode));
-        DEBUG_LOG("Aim assist mode changed: " + aimAssistModeToString(oldMode) + " -> " + aimAssistModeToString(mode));
-    }
-}
-
-bool StateManager::isAimAssistActive() const {
-    return m_aim_assist_active.load() && getSystemState() == SystemState::Running;
-}
-
-void StateManager::setAimAssistActive(bool active) {
-    bool oldActive = m_aim_assist_active.exchange(active);
-    if (oldActive != active) {
-        updateLastActivity();
-        triggerStateChangeEvent("AimAssist", 
-                               oldActive ? "Active" : "Inactive", 
-                               active ? "Active" : "Inactive");
-        DEBUG_LOG("Aim assist " + std::string(active ? "activated" : "deactivated"));
-    }
-}
-
-// =============================================================================
-// WEAPON CONTEXT MANAGEMENT
-// =============================================================================
-const WeaponContext& StateManager::getWeaponContext() const {
+bool StateManager::hasValidTarget() const {
     std::shared_lock<std::shared_mutex> lock(m_state_mutex);
-    return m_weapon_context;
+    return m_current_target.isValid();
 }
 
-void StateManager::updateWeaponContext(const WeaponContext& context) {
-    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
-    
-    bool profileChanged = (m_weapon_context.active_profile_index != context.active_profile_index);
-    bool weaponChanged = (m_weapon_context.active_weapon_name != context.active_weapon_name);
-    
-    m_weapon_context = context;
-    updateLastActivity();
-    
-    if (profileChanged) {
-        triggerStateChangeEvent("WeaponProfile", 
-                               std::to_string(m_weapon_context.active_profile_index),
-                               std::to_string(context.active_profile_index));
-    }
-    
-    if (weaponChanged) {
-        triggerStateChangeEvent("Weapon", m_weapon_context.active_weapon_name, context.active_weapon_name);
-    }
-}
-
-void StateManager::setActiveWeaponProfile(int profileIndex) {
-    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
-    
-    if (profileIndex != m_weapon_context.active_profile_index) {
-        int oldIndex = m_weapon_context.active_profile_index;
-        m_weapon_context.active_profile_index = profileIndex;
-        updateLastActivity();
-        
-        triggerStateChangeEvent("WeaponProfile", std::to_string(oldIndex), std::to_string(profileIndex));
-        DEBUG_LOG("Active weapon profile changed: " + std::to_string(oldIndex) + " -> " + std::to_string(profileIndex));
-    }
-}
-
-// =============================================================================
-// STATISTICS AND METRICS
-// =============================================================================
-const PlayerStats& StateManager::getPlayerStats() const {
+POINT StateManager::getCursorPosition() const {
     std::shared_lock<std::shared_mutex> lock(m_state_mutex);
-    return m_player_stats;
+    return m_cursor_position;
 }
 
-const SystemMetrics& StateManager::getSystemMetrics() const {
-    std::lock_guard<std::mutex> lock(m_metrics_mutex);
-    return m_system_metrics;
-}
-
-void StateManager::updatePlayerStats(const PlayerStats& stats) {
+void StateManager::setCursorPosition(int x, int y) {
     std::unique_lock<std::shared_mutex> lock(m_state_mutex);
-    m_player_stats = stats;
-    updateLastActivity();
+    m_cursor_position.x = x;
+    m_cursor_position.y = y;
 }
 
-void StateManager::updateSystemMetrics(const SystemMetrics& metrics) {
-    std::lock_guard<std::mutex> lock(m_metrics_mutex);
-    m_system_metrics = metrics;
+POINT StateManager::getScreenCenter() const {
+    std::shared_lock<std::shared_mutex> lock(m_state_mutex);
+    return { m_appSettings.screen_width / 2, m_appSettings.screen_height / 2 };
 }
 
-void StateManager::incrementShotsFired() {
-    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
-    m_player_stats.shots_fired++;
-    m_weapon_context.last_fire_time = std::chrono::steady_clock::now();
-    m_weapon_context.is_firing = true;
-    updateLastActivity();
+const std::vector<WeaponProfile>& StateManager::getWeaponProfiles() const {
+    std::shared_lock<std::shared_mutex> lock(m_state_mutex);
+    return m_appSettings.weapon_profiles; // Assumes profiles are stored in AppSettings
 }
 
-void StateManager::incrementHitsDetected() {
-    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
-    m_player_stats.hits_detected++;
-    
-    // Update accuracy
-    if (m_player_stats.shots_fired > 0) {
-        m_player_stats.average_accuracy = 
-            static_cast<double>(m_player_stats.hits_detected) / m_player_stats.shots_fired * 100.0;
+const WeaponProfile* StateManager::getActiveWeaponProfile() const {
+    std::shared_lock<std::shared_mutex> lock(m_state_mutex);
+    const auto& profiles = m_appSettings.weapon_profiles;
+    int index = m_appSettings.active_profile_index;
+
+    if (index >= 0 && static_cast<size_t>(index) < profiles.size()) {
+        return &profiles[index];
     }
-    updateLastActivity();
+    return nullptr;
 }
 
-void StateManager::incrementHeadshotsDetected() {
+int StateManager::getActiveWeaponProfileIndex() const {
+    std::shared_lock<std::shared_mutex> lock(m_state_mutex);
+    return m_appSettings.active_profile_index;
+}
+
+void StateManager::setActiveWeaponProfileByIndex(int profileIndex) {
     std::unique_lock<std::shared_mutex> lock(m_state_mutex);
-    m_player_stats.headshots_detected++;
-    updateLastActivity();
+    if (static_cast<size_t>(profileIndex) < m_appSettings.weapon_profiles.size()) {
+        m_appSettings.active_profile_index = profileIndex;
+    }
 }
 
-// =============================================================================
-// EVENT SYSTEM
-// =============================================================================
+bool StateManager::loadWeaponProfiles(const std::vector<WeaponProfile>& profiles) {
+    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
+    m_appSettings.weapon_profiles = profiles;
+    if (static_cast<size_t>(m_appSettings.active_profile_index) >= profiles.size()){
+        m_appSettings.active_profile_index = -1; // Invalidate index if out of bounds
+    }
+    return true;
+}
+
 void StateManager::registerStateChangeCallback(const std::string& name, StateChangeCallback callback) {
     std::lock_guard<std::mutex> lock(m_callback_mutex);
     m_callbacks[name] = callback;
-    DEBUG_LOG("Registered state change callback: " + name);
 }
 
 void StateManager::unregisterStateChangeCallback(const std::string& name) {
     std::lock_guard<std::mutex> lock(m_callback_mutex);
     m_callbacks.erase(name);
-    DEBUG_LOG("Unregistered state change callback: " + name);
 }
 
-// =============================================================================
-// CONFIGURATION STATE
-// =============================================================================
-void StateManager::setConfigValue(const std::string& key, const std::string& value) {
-    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
-    
-    std::string oldValue = m_config_values[key];
-    m_config_values[key] = value;
-    
-    if (oldValue != value) {
-        triggerStateChangeEvent("Config:" + key, oldValue, value);
-        DEBUG_LOG("Config value changed - " + key + ": " + oldValue + " -> " + value);
-    }
-}
-
-std::string StateManager::getConfigValue(const std::string& key, const std::string& defaultValue) const {
-    std::shared_lock<std::shared_mutex> lock(m_state_mutex);
-    
-    auto it = m_config_values.find(key);
-    return (it != m_config_values.end()) ? it->second : defaultValue;
-}
-
-// =============================================================================
-// DEBUG AND DIAGNOSTICS
-// =============================================================================
-std::vector<std::string> StateManager::getDiagnosticInfo() const {
-    std::shared_lock<std::shared_mutex> lock(m_state_mutex);
-    
-    std::vector<std::string> info;
-    
-    info.push_back("=== StateManager Diagnostics ===");
-    info.push_back("System State: " + getSystemStateString());
-    info.push_back("Player Movement: " + ::playerMovementStateToString(getPlayerMovementState()));
-    info.push_back("Aim Assist Mode: " + aimAssistModeToString(getAimAssistMode()));
-    info.push_back("Aim Assist Active: " + std::string(isAimAssistActive() ? "Yes" : "No"));
-    
-    info.push_back("--- Weapon Context ---");
-    info.push_back("Active Profile: " + std::to_string(m_weapon_context.active_profile_index));
-    info.push_back("Weapon Name: " + m_weapon_context.active_weapon_name);
-    info.push_back("Is Firing: " + std::string(m_weapon_context.is_firing ? "Yes" : "No"));
-    
-    info.push_back("--- Player Stats ---");
-    info.push_back("Shots Fired: " + std::to_string(m_player_stats.shots_fired));
-    info.push_back("Hits Detected: " + std::to_string(m_player_stats.hits_detected));
-    info.push_back("Headshots: " + std::to_string(m_player_stats.headshots_detected));
-    info.push_back("Average Accuracy: " + std::to_string(m_player_stats.average_accuracy) + "%");
-    
-    return info;
-}
-
-void StateManager::logStateChange(const std::string& component, const std::string& from, const std::string& to) {
-    logMessage("[STATE] " + component + ": " + from + " -> " + to);
-}
-
-// =============================================================================
-// THREAD-SAFE BULK UPDATES
-// =============================================================================
-void StateManager::performBulkUpdate(std::function<void()> updateFunction) {
-    std::unique_lock<std::shared_mutex> lock(m_state_mutex);
-    updateFunction();
-    updateLastActivity();
-}
-
-// =============================================================================
-// PRIVATE HELPER METHODS
-// =============================================================================
 void StateManager::triggerStateChangeEvent(const std::string& component, const std::string& from, const std::string& to) {
+    std::stringstream ss;
+    ss << "[STATE CHANGE] " << component << ": '" << from << "' -> '" << to << "'";
+    logMessage(ss.str());
+
     std::lock_guard<std::mutex> lock(m_callback_mutex);
-    
-    for (const auto& [name, callback] : m_callbacks) {
-        // Sin try-catch ya que las excepciones están deshabilitadas
-        if (callback) {
-            callback(component, from, to);
-        } else {
-            logMessage("ERROR: Null callback in state change callback '" + name + "'");
+    for (const auto& pair : m_callbacks) {
+        if (pair.second) {
+            pair.second(component, from, to);
         }
     }
 }
 
-void StateManager::updateLastActivity() {
-    m_last_activity_time = std::chrono::steady_clock::now();
-}
-
-std::string StateManager::aimAssistModeToString(AimAssistMode mode) const {
-    switch (mode) {
-        case AimAssistMode::Disabled: return "Disabled";
-        case AimAssistMode::Precision: return "Precision";
-        case AimAssistMode::Aggressive: return "Aggressive";
-        case AimAssistMode::Stealth: return "Stealth";
-        case AimAssistMode::Custom: return "Custom";
-        default: return "Unknown";
-    }
-}
-
 std::string StateManager::systemStateToString(SystemState state) const {
-    switch (state) {
-        case SystemState::Initializing: return "Initializing";
-        case SystemState::Running: return "Running";
-        case SystemState::Paused: return "Paused";
-        case SystemState::Shutting_Down: return "Shutting_Down";
-        case SystemState::Error: return "Error";
+    switch(state) {
+        case SystemState::INACTIVE: return "Inactive";
+        case SystemState::INITIALIZING: return "Initializing";
+        case SystemState::ACTIVE: return "Active";
+        case SystemState::PAUSED: return "Paused";
+        case SystemState::SHUTTING_DOWN: return "Shutting Down";
+        case SystemState::ERROR_STATE: return "Error";
         default: return "Unknown";
     }
 }
 
-// =============================================================================
-// GLOBAL FUNCTIONS
-// =============================================================================
+// Global function implementations
 bool initializeStateManager() {
     if (!g_stateManager) {
         g_stateManager = std::make_unique<StateManager>();
         g_stateManager->initialize();
-        logMessage("✅ StateManager initialized successfully");
         return true;
     }
     return g_stateManager->isInitialized();
@@ -399,7 +204,6 @@ void shutdownStateManager() {
     if (g_stateManager) {
         g_stateManager->shutdown();
         g_stateManager.reset();
-        logMessage("✅ StateManager shutdown completed");
     }
 }
 

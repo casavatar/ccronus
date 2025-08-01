@@ -118,8 +118,8 @@ MODULAR_SRCS = $(wildcard $(MODULAR_SRCDIR)/*.cpp)
 # Phase 3: Optimization systems
 OPTIMIZATION_SRCS = $(wildcard $(OPTIMIZATION_SRCDIR)/*.cpp)
 
-# Add optimized assist system
-OPTIMIZATION_SRCS += $(SYSTEMS_SRCDIR)/assist_optimized.cpp
+# Add optimized assist system (moved to systems directory)
+# OPTIMIZATION_SRCS += $(SYSTEMS_SRCDIR)/assist_optimized.cpp
 
 # Weapon and GUI systems
 WEAPONS_SRCS = $(wildcard $(WEAPONS_SRCDIR)/*.cpp)
@@ -154,7 +154,7 @@ INC_FLAGS = -I$(SRCDIR) \
 # EXTERNAL LIBRARIES
 # =============================================================================
 # PortAudio library
-PORTAUDIO_LIB = $(PORTAUDIO_PATH)/lib/.libs/libportaudio.a
+PORTAUDIO_LIB = $(PORTAUDIO_PATH)/lib/.libs/libportaudio.dll.a
 
 # FFTW library (for audio processing)
 FFTW_LIB = $(FFTW_PATH)/lib/libfftw3f.a

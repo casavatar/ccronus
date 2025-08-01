@@ -20,6 +20,7 @@
 #include <typeinfo>
 #include <cstddef>
 #include "common_defines.h"
+#include "globals.h"
 
 // =============================================================================
 // CONCRETE TYPE DEFINITIONS (NOT FORWARD DECLARATIONS)
@@ -47,15 +48,7 @@ struct PIDState {
         : kp(p), ki(i), kd(d), max_output(max_out) {}
 };
 
-struct MovementCommand {
-    double x_offset = 0.0;
-    double y_offset = 0.0;
-    double magnitude = 0.0;
-    uint64_t timestamp = 0;
-    
-    MovementCommand() = default;
-    MovementCommand(double x, double y) : x_offset(x), y_offset(y) {}
-};
+// MovementCommand is defined in globals.h - removed duplicate definition
 
 // =============================================================================
 // POOL CONFIGURATION

@@ -57,206 +57,8 @@ bool isFireModeValid(FireMode mode) {
 
 // =============================================================================
 // WEAPON PROFILE IMPLEMENTATION
+// Note: WeaponProfile methods are now implemented in globals.cpp to avoid duplication
 // =============================================================================
-
-void WeaponProfile::initializeDefaultPIDStates() {
-    // Initialize PID parameters for different movement states
-    pid_states["stationary"] = PIDParameters(0.7, 0.3, 0.2, 50.0, 100.0, 25.0);
-    pid_states["walking"] = PIDParameters(0.75, 0.22, 0.28, 45.0, 90.0, 23.0);
-    pid_states["sprinting"] = PIDParameters(0.65, 0.18, 0.25, 40.0, 80.0, 20.0);
-    pid_states["strafing"] = PIDParameters(0.85, 0.18, 0.35, 55.0, 110.0, 28.0);
-    pid_states["sliding"] = PIDParameters(0.6, 0.15, 0.22, 35.0, 70.0, 18.0);
-    pid_states["crouching"] = PIDParameters(0.8, 0.35, 0.25, 40.0, 80.0, 20.0);
-    pid_states["jumping"] = PIDParameters(0.5, 0.1, 0.15, 30.0, 60.0, 15.0);
-    pid_states["falling"] = PIDParameters(0.45, 0.08, 0.12, 25.0, 50.0, 12.0);
-}
-
-bool WeaponProfile::isValid() const {
-    // Basic validation
-    if (name.empty()) return false;
-    if (!isFireModeValid(fire_mode)) return false;
-    if (sensitivity < 0.1 || sensitivity > 10.0) return false;
-    if (smoothing < 0.0 || smoothing > 1.0) return false;
-    if (prediction < 0.0 || prediction > 1.0) return false;
-    if (fire_delay_base < 0 || fire_delay_variance < 0) return false;
-    if (smoothing_factor < 0.0 || smoothing_factor > 1.0) return false;
-    if (prediction_aggressiveness < 0.0 || prediction_aggressiveness > 1.0) return false;
-    
-    // Validate PID states
-    for (const auto& [state, params] : pid_states) {
-        if (!params.isValid()) return false;
-    }
-    
-    // Validate recoil pattern
-    for (const auto& point : recoil_pattern) {
-        if (!std::isfinite(point.x) || !std::isfinite(point.y)) return false;
-    }
-    
-    return true;
-}
-
-PIDParameters WeaponProfile::getPIDParameters(const std::string& movement_state) const {
-    auto it = pid_states.find(movement_state);
-    if (it != pid_states.end()) {
-        return it->second;
-    }
-    // Return default stationary parameters if state not found
-    auto default_it = pid_states.find("stationary");
-    if (default_it != pid_states.end()) {
-        return default_it->second;
-    }
-    return PIDParameters(); // Fallback to default constructor
-}
-
-void WeaponProfile::setPIDParameters(const std::string& movement_state, const PIDParameters& params) {
-    if (params.isValid()) {
-        pid_states[movement_state] = params;
-    }
-}
-
-bool WeaponProfile::hasPIDState(const std::string& movement_state) const {
-    return pid_states.find(movement_state) != pid_states.end();
-}
-
-std::vector<std::string> WeaponProfile::getAvailablePIDStates() const {
-    std::vector<std::string> states;
-    for (const auto& [state, _] : pid_states) {
-        states.push_back(state);
-    }
-    return states;
-}
-
-void WeaponProfile::addRecoilPoint(double x, double y) {
-    recoil_pattern.emplace_back(x, y);
-}
-
-void WeaponProfile::addRecoilPoint(const RecoilPoint& point) {
-    recoil_pattern.push_back(point);
-}
-
-void WeaponProfile::clearRecoilPattern() {
-    recoil_pattern.clear();
-}
-
-RecoilPoint WeaponProfile::getRecoilOffset(int shot_number) const {
-    if (recoil_pattern.empty() || shot_number < 0) {
-        return RecoilPoint(0.0, 0.0);
-    }
-    
-    // Cycle through pattern if shot number exceeds pattern length
-    size_t index = shot_number % recoil_pattern.size();
-    return recoil_pattern[index];
-}
-
-size_t WeaponProfile::getRecoilPatternSize() const {
-    return recoil_pattern.size();
-}
-
-void WeaponProfile::scaleRecoilPattern(double factor) {
-    for (auto& point : recoil_pattern) {
-        point = point * factor;
-    }
-}
-
-void WeaponProfile::normalizeRecoilPattern() {
-    if (recoil_pattern.empty()) return;
-    
-    // Find maximum magnitude
-    double max_magnitude = 0.0;
-    for (const auto& point : recoil_pattern) {
-        max_magnitude = std::max(max_magnitude, point.magnitude());
-    }
-    
-    // Normalize if max magnitude is greater than 0
-    if (max_magnitude > 0.0) {
-        double scale_factor = 1.0 / max_magnitude;
-        scaleRecoilPattern(scale_factor);
-    }
-}
-
-void WeaponProfile::incrementUsage() {
-    usage_count++;
-    last_used = steady_clock::now();
-}
-
-void WeaponProfile::updateEffectiveness(double rating) {
-    // Exponential moving average
-    double alpha = 0.1; // Learning rate
-    effectiveness_rating = (1.0 - alpha) * effectiveness_rating + alpha * rating;
-}
-
-void WeaponProfile::updateAccuracy(double accuracy) {
-    // Exponential moving average
-    double alpha = 0.1; // Learning rate
-    accuracy_rating = (1.0 - alpha) * accuracy_rating + alpha * accuracy;
-}
-
-double WeaponProfile::getUsageScore() const {
-    // Combine usage count and recency
-    auto time_since_use = getTimeSinceLastUse();
-    double recency_factor = std::exp(-time_since_use.count() / 3600.0); // Decay over hours
-    return static_cast<double>(usage_count) * recency_factor;
-}
-
-std::chrono::duration<double> WeaponProfile::getTimeSinceLastUse() const {
-    return steady_clock::now() - last_used;
-}
-
-std::string WeaponProfile::fireModeString() const {
-    return fireModeToString(fire_mode);
-}
-
-void WeaponProfile::resetToDefaults() {
-    sensitivity = 1.0;
-    smoothing = 0.75;
-    prediction = 0.5;
-    recoil_compensation = true;
-    fire_delay_base = 50;
-    fire_delay_variance = 5;
-    smoothing_factor = 0.75;
-    prediction_aggressiveness = 0.5;
-    
-    initializeDefaultPIDStates();
-    recoil_pattern.clear();
-    
-    // Reset advanced settings
-    advanced = AdvancedSettings();
-}
-
-void WeaponProfile::resetStatistics() {
-    usage_count = 0;
-    last_used = steady_clock::now();
-    effectiveness_rating = 0.0;
-    accuracy_rating = 0.0;
-}
-
-std::string WeaponProfile::toString() const {
-    std::ostringstream oss;
-    oss << "WeaponProfile{";
-    oss << "name: " << name;
-    oss << ", fire_mode: " << fireModeString();
-    oss << ", sensitivity: " << sensitivity;
-    oss << ", smoothing: " << smoothing;
-    oss << ", prediction: " << prediction;
-    oss << ", recoil_compensation: " << (recoil_compensation ? "true" : "false");
-    oss << ", usage_count: " << usage_count;
-    oss << ", effectiveness: " << effectiveness_rating;
-    oss << ", accuracy: " << accuracy_rating;
-    oss << "}";
-    return oss.str();
-}
-
-bool WeaponProfile::operator==(const WeaponProfile& other) const {
-    return name == other.name &&
-           fire_mode == other.fire_mode &&
-           std::abs(sensitivity - other.sensitivity) < 1e-6 &&
-           std::abs(smoothing - other.smoothing) < 1e-6 &&
-           std::abs(prediction - other.prediction) < 1e-6;
-}
-
-bool WeaponProfile::operator!=(const WeaponProfile& other) const {
-    return !(*this == other);
-}
 
 // =============================================================================
 // WEAPON PROFILE COLLECTION IMPLEMENTATION
@@ -266,11 +68,11 @@ WeaponProfileCollection::WeaponProfileCollection(const std::string& name)
     : collection_name_(name) {}
 
 WeaponProfileCollection::WeaponProfileCollection(const WeaponProfileCollection& other)
-    : collection_name_(other.collection_name_),
+    : active_profile_index_(other.active_profile_index_),
+      collection_name_(other.collection_name_),
       file_path_(other.file_path_),
       auto_save_(other.auto_save_),
-      modified_(other.modified_),
-      active_profile_index_(other.active_profile_index_) {
+      modified_(other.modified_) {
     
     // Deep copy profiles
     for (const auto& profile : other.profiles_) {
@@ -477,157 +279,140 @@ int WeaponProfileCollection::findProfileIndex(const std::string& name) const {
 }
 
 bool WeaponProfileCollection::loadFromFile(const std::string& filename) {
-    try {
-        std::ifstream file(filename);
-        if (!file.is_open()) {
-            logError("Cannot open weapon profiles file: " + filename);
-            return false;
-        }
-        
-        json j;
-        file >> j;
-        
-        if (!j.contains("weapon_profiles") || !j["weapon_profiles"].is_array()) {
-            logError("Invalid weapon profiles file format");
-            return false;
-        }
-        
-        profiles_.clear();
-        
-        for (const auto& profile_json : j["weapon_profiles"]) {
-            auto profile = std::make_unique<WeaponProfile>();
-            
-            // Load basic properties
-            profile->name = profile_json.value("name", "Unnamed");
-            profile->fire_mode = stringToFireMode(profile_json.value("fire_mode", "Single"));
-            profile->sensitivity = profile_json.value("sensitivity", 1.0);
-            profile->smoothing = profile_json.value("smoothing", 0.75);
-            profile->prediction = profile_json.value("prediction", 0.5);
-            profile->recoil_compensation = profile_json.value("recoil_compensation", true);
-            profile->fire_delay_base = profile_json.value("fire_delay_base", 50);
-            profile->fire_delay_variance = profile_json.value("fire_delay_variance", 5);
-            profile->smoothing_factor = profile_json.value("smoothing_factor", 0.75);
-            profile->prediction_aggressiveness = profile_json.value("prediction_aggressiveness", 0.5);
-            
-            // Load PID states
-            if (profile_json.contains("pid_states")) {
-                profile->pid_states.clear();
-                for (const auto& [state_name, pid_json] : profile_json["pid_states"].items()) {
-                    PIDParameters params;
-                    params.kp = pid_json.value("kp", 0.7);
-                    params.ki = pid_json.value("ki", 0.3);
-                    params.kd = pid_json.value("kd", 0.2);
-                    params.max_output = pid_json.value("max_output", 50.0);
-                    params.integral_limit = pid_json.value("integral_limit", 100.0);
-                    params.derivative_limit = pid_json.value("derivative_limit", 25.0);
-                    profile->pid_states[state_name] = params;
-                }
-            }
-            
-            // Load recoil pattern
-            if (profile_json.contains("recoil_pattern")) {
-                profile->recoil_pattern.clear();
-                for (const auto& point_json : profile_json["recoil_pattern"]) {
-                    if (point_json.is_array() && point_json.size() >= 2) {
-                        double x = point_json[0];
-                        double y = point_json[1];
-                        profile->recoil_pattern.emplace_back(x, y);
-                    }
-                }
-            }
-            
-            // Validate and add profile
-            if (profile->isValid()) {
-                profiles_.push_back(std::move(profile));
-            } else {
-                logWarning("Skipping invalid profile: " + profile->name);
-            }
-        }
-        
-        file_path_ = filename;
-        markSaved();
-        
-        logMessage("Loaded " + std::to_string(profiles_.size()) + " weapon profiles from " + filename);
-        return true;
-        
-    } catch (const json::exception& e) {
-        logError("JSON error loading weapon profiles: " + std::string(e.what()));
-        return false;
-    } catch (const std::exception& e) {
-        logError("Error loading weapon profiles: " + std::string(e.what()));
+    std::ifstream file(filename);
+    if (!file.is_open()) {
+        logError("Cannot open weapon profiles file: " + filename);
         return false;
     }
+    
+    json j;
+    file >> j;
+    
+    if (!j.contains("weapon_profiles") || !j["weapon_profiles"].is_array()) {
+        logError("Invalid weapon profiles file format");
+        return false;
+    }
+    
+    profiles_.clear();
+    
+    for (const auto& profile_json : j["weapon_profiles"]) {
+        auto profile = std::make_unique<WeaponProfile>();
+        
+        // Load basic properties
+        profile->name = profile_json.value("name", "Unnamed");
+        profile->fire_mode = stringToFireMode(profile_json.value("fire_mode", "Single"));
+        profile->sensitivity = profile_json.value("sensitivity", 1.0);
+        profile->smoothing = profile_json.value("smoothing", 0.75);
+        profile->prediction = profile_json.value("prediction", 0.5);
+        profile->recoil_compensation = profile_json.value("recoil_compensation", true);
+        profile->fire_delay_base = profile_json.value("fire_delay_base", 50);
+        profile->fire_delay_variance = profile_json.value("fire_delay_variance", 5);
+        profile->smoothing_factor = profile_json.value("smoothing_factor", 0.75);
+        profile->prediction_aggressiveness = profile_json.value("prediction_aggressiveness", 0.5);
+        
+        // Load PID states
+        if (profile_json.contains("pid_states")) {
+            profile->pid_states.clear();
+            for (const auto& [state_name, pid_json] : profile_json["pid_states"].items()) {
+                PIDParameters params;
+                params.kp = pid_json.value("kp", 0.7);
+                params.ki = pid_json.value("ki", 0.3);
+                params.kd = pid_json.value("kd", 0.2);
+                params.max_output = pid_json.value("max_output", 50.0);
+                params.integral_limit = pid_json.value("integral_limit", 100.0);
+                params.derivative_limit = pid_json.value("derivative_limit", 25.0);
+                profile->pid_states[state_name] = params;
+            }
+        }
+        
+        // Load recoil pattern
+        if (profile_json.contains("recoil_pattern")) {
+            profile->recoil_pattern.clear();
+            for (const auto& point_json : profile_json["recoil_pattern"]) {
+                if (point_json.is_array() && point_json.size() >= 2) {
+                    double x = point_json[0];
+                    double y = point_json[1];
+                    profile->recoil_pattern.emplace_back(x, y);
+                }
+            }
+        }
+        
+        // Validate and add profile
+        if (profile->isValid()) {
+            profiles_.push_back(std::move(profile));
+        } else {
+            logWarning("Skipping invalid profile: " + profile->name);
+        }
+    }
+    
+    file_path_ = filename;
+    markSaved();
+    
+    logMessage("Loaded " + std::to_string(profiles_.size()) + " weapon profiles from " + filename);
+    return true;
 }
 
 bool WeaponProfileCollection::saveToFile(const std::string& filename) const {
-    try {
-        json j;
-        j["weapon_profiles"] = json::array();
+    json j;
+    j["weapon_profiles"] = json::array();
+    
+    for (const auto& profile : profiles_) {
+        json profile_json;
         
-        for (const auto& profile : profiles_) {
-            json profile_json;
-            
-            // Save basic properties
-            profile_json["name"] = profile->name;
-            profile_json["fire_mode"] = profile->fireModeString();
-            profile_json["sensitivity"] = profile->sensitivity;
-            profile_json["smoothing"] = profile->smoothing;
-            profile_json["prediction"] = profile->prediction;
-            profile_json["recoil_compensation"] = profile->recoil_compensation;
-            profile_json["fire_delay_base"] = profile->fire_delay_base;
-            profile_json["fire_delay_variance"] = profile->fire_delay_variance;
-            profile_json["smoothing_factor"] = profile->smoothing_factor;
-            profile_json["prediction_aggressiveness"] = profile->prediction_aggressiveness;
-            
-            // Save PID states
-            profile_json["pid_states"] = json::object();
-            for (const auto& [state_name, params] : profile->pid_states) {
-                profile_json["pid_states"][state_name] = {
-                    {"kp", params.kp},
-                    {"ki", params.ki},
-                    {"kd", params.kd},
-                    {"max_output", params.max_output},
-                    {"integral_limit", params.integral_limit},
-                    {"derivative_limit", params.derivative_limit}
-                };
-            }
-            
-            // Save recoil pattern
-            profile_json["recoil_pattern"] = json::array();
-            for (const auto& point : profile->recoil_pattern) {
-                profile_json["recoil_pattern"].push_back({point.x, point.y});
-            }
-            
-            j["weapon_profiles"].push_back(profile_json);
+        // Save basic properties
+        profile_json["name"] = profile->name;
+        profile_json["fire_mode"] = profile->fireModeString();
+        profile_json["sensitivity"] = profile->sensitivity;
+        profile_json["smoothing"] = profile->smoothing;
+        profile_json["prediction"] = profile->prediction;
+        profile_json["recoil_compensation"] = profile->recoil_compensation;
+        profile_json["fire_delay_base"] = profile->fire_delay_base;
+        profile_json["fire_delay_variance"] = profile->fire_delay_variance;
+        profile_json["smoothing_factor"] = profile->smoothing_factor;
+        profile_json["prediction_aggressiveness"] = profile->prediction_aggressiveness;
+        
+        // Save PID states
+        profile_json["pid_states"] = json::object();
+        for (const auto& [state_name, params] : profile->pid_states) {
+            profile_json["pid_states"][state_name] = {
+                {"kp", params.kp},
+                {"ki", params.ki},
+                {"kd", params.kd},
+                {"max_output", params.max_output},
+                {"integral_limit", params.integral_limit},
+                {"derivative_limit", params.derivative_limit}
+            };
         }
         
-        // Add metadata
-        j["metadata"] = {
-            {"version", "3.1.9"},
-            {"created", getCurrentTimeString()},
-            {"profile_count", profiles_.size()},
-            {"active_profile", active_profile_index_}
-        };
-        
-        std::ofstream file(filename);
-        if (!file.is_open()) {
-            logError("Cannot create weapon profiles file: " + filename);
-            return false;
+        // Save recoil pattern
+        profile_json["recoil_pattern"] = json::array();
+        for (const auto& point : profile->recoil_pattern) {
+            json point_json = {{"x", point.x}, {"y", point.y}};
+            profile_json["recoil_pattern"].push_back(point_json);
         }
         
-        file << std::setw(2) << j << std::endl;
-        file.close();
-        
-        logMessage("Saved " + std::to_string(profiles_.size()) + " weapon profiles to " + filename);
-        return true;
-        
-    } catch (const json::exception& e) {
-        logError("JSON error saving weapon profiles: " + std::string(e.what()));
-        return false;
-    } catch (const std::exception& e) {
-        logError("Error saving weapon profiles: " + std::string(e.what()));
+        j["weapon_profiles"].push_back(profile_json);
+    }
+    
+    // Add metadata
+    j["metadata"] = {
+        {"version", "3.1.9"},
+        {"created", getCurrentTimeString()},
+        {"profile_count", profiles_.size()},
+        {"active_profile", active_profile_index_}
+    };
+    
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        logError("Cannot create weapon profiles file: " + filename);
         return false;
     }
+    
+    file << std::setw(2) << j << std::endl;
+    file.close();
+    
+    logMessage("Saved " + std::to_string(profiles_.size()) + " weapon profiles to " + filename);
+    return true;
 }
 
 void WeaponProfileCollection::setAutoSave(bool enabled) {
@@ -720,11 +505,12 @@ bool WeaponProfileManager::initialize(const std::string& profiles_dir) {
     profiles_directory_ = profiles_dir;
     
     // Create profiles directory if it doesn't exist
-    try {
-        std::filesystem::create_directories(profiles_directory_);
-    } catch (const std::exception& e) {
-        logError("Failed to create profiles directory: " + std::string(e.what()));
-        return false;
+    // Error handling without exceptions (compiled with -fno-exceptions)
+    if (!std::filesystem::exists(profiles_directory_)) {
+        if (!std::filesystem::create_directories(profiles_directory_)) {
+            logError("Failed to create profiles directory: " + profiles_directory_);
+            return false;
+        }
     }
     
     // Load default profiles
@@ -932,14 +718,15 @@ void WeaponProfileManager::setProfilesDirectory(const std::string& dir) {
 std::vector<std::string> WeaponProfileManager::getAvailableProfileFiles() const {
     std::vector<std::string> files;
     
-    try {
+    // Error handling without exceptions (compiled with -fno-exceptions)
+    if (std::filesystem::exists(profiles_directory_)) {
         for (const auto& entry : std::filesystem::directory_iterator(profiles_directory_)) {
             if (entry.is_regular_file() && entry.path().extension() == ".json") {
                 files.push_back(entry.path().filename().string());
             }
         }
-    } catch (const std::exception& e) {
-        logError("Error scanning profiles directory: " + std::string(e.what()));
+    } else {
+        logError("Profiles directory does not exist: " + profiles_directory_);
     }
     
     return files;
