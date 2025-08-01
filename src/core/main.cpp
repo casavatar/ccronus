@@ -7,6 +7,7 @@
 #include "globals.h"
 #include "config.h"
 #include "state_manager.h"
+#include "event_system.h"
 #include "assist_optimized.h"
 #include "input.h"
 #include "action_handler.h"
@@ -39,6 +40,12 @@ int main() {
         return EXIT_FAILURE;
     }
 
+    if (!initializeEventSystem()) {
+        logError("FATAL: EventSystem initialization failed. Exiting.");
+        shutdownStateManager();
+        return EXIT_FAILURE;
+    }
+
     if (!loadConfiguration(GlobalConstants::MAIN_CONFIG_FILE)) {
         logWarning("Could not load configuration file. Applying default settings.");
         applyDefaultConfiguration();
@@ -46,6 +53,7 @@ int main() {
     
     if (!initializeInputSystem()) {
         logError("FATAL: Input System initialization failed. Exiting.");
+        shutdownEventSystem();
         shutdownStateManager();
         return EXIT_FAILURE;
     }
@@ -53,6 +61,7 @@ int main() {
     if (!initializeActionHandler()) {
         logError("FATAL: Action Handler initialization failed. Exiting.");
         shutdownInputSystem();
+        shutdownEventSystem();
         shutdownStateManager();
         return EXIT_FAILURE;
     }
@@ -61,6 +70,7 @@ int main() {
         logError("FATAL: Aim Assist System initialization failed. Exiting.");
         shutdownActionHandler();
         shutdownInputSystem();
+        shutdownEventSystem();
         shutdownStateManager();
         return EXIT_FAILURE;
     }
@@ -110,6 +120,7 @@ int main() {
     shutdownAimAssistSystem();
     shutdownActionHandler();
     shutdownInputSystem();
+    shutdownEventSystem();
     shutdownStateManager();
 
     logMessage("--- Tactical Aim Assist Shutdown Complete ---");

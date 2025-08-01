@@ -21,7 +21,7 @@
     "show_config": "F4",
     "reload_config": "F5",
     "show_stats": "F12",
-    "exit": "ESCAPE",
+    "exit": "ALT+ESCAPE",
     "emergency_stop": "PAUSE",
     "toggle_overlay": "F11",
     "smart_sprint_left": "ALT+A",

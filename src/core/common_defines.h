@@ -2,7 +2,7 @@
 // description: Centralized definitions to eliminate duplications across the project
 // developer: ingekastel
 // license: GNU General Public License v3.0
-// version: 3.0.0 - Refactored
+// version: 4.0.0 - Enhanced with new GUI control IDs and features
 // date: 2025-07-16
 // project: Tactical Aim Assist
 
@@ -20,6 +20,28 @@
 #define ID_MOVEMENT_STATUS_LABEL        1007
 #define ID_PROFILE_COMBOBOX             1008
 
+// Weapon Profile UI Control IDs
+#define ID_WEAPON_PROFILE_FRAME         2001
+#define ID_ACTIVE_PROFILE_LABEL         2002
+#define ID_PROFILE_ENHANCEMENTS_FRAME   2003
+#define ID_RECOIL_CONTROL_TOGGLE        2004
+#define ID_AIM_ASSIST_TOGGLE            2005
+#define ID_SPREAD_CONTROL_TOGGLE        2006
+#define ID_PROFILE_STATS_LABEL          2007
+
+// Multi-Monitor UI Control IDs
+#define ID_MONITOR_INFO_FRAME           3001
+#define ID_CURRENT_MONITOR_LABEL        3002
+#define ID_MONITOR_COUNT_LABEL          3003
+#define ID_MONITOR_RESOLUTION_LABEL     3004
+#define ID_MONITOR_SWITCH_BUTTON        3005
+
+// Movement System UI Control IDs
+#define ID_MOVEMENT_FRAME               4001
+#define ID_SLIDE_KEY_LABEL              4002
+#define ID_MOVEMENT_STATE_LABEL         4003
+#define ID_MOVEMENT_TOGGLE_BUTTON       4004
+
 // =============================================================================
 // CUSTOM WINDOW MESSAGES - SINGLE SOURCE OF TRUTH
 // =============================================================================
@@ -27,6 +49,9 @@
 #define WM_UPDATE_ANALYTICS             (WM_USER + 2)
 #define WM_UPDATE_AUDIO_ALERT           (WM_USER + 3)
 #define WM_UPDATE_MOVEMENT_STATUS       (WM_USER + 4)
+#define WM_UPDATE_WEAPON_PROFILE        (WM_USER + 5)
+#define WM_UPDATE_MONITOR_INFO          (WM_USER + 6)
+#define WM_UPDATE_SLIDE_STATUS          (WM_USER + 7)
 
 // =============================================================================
 // MATHEMATICAL CONSTANTS
@@ -50,6 +75,8 @@
 #define AUDIO_POLL_INTERVAL_MS          10
 #define MAIN_LOOP_SLEEP_MS              10
 #define ANALYTICS_UPDATE_INTERVAL_MS    100
+#define SLIDE_DURATION_MS               500
+#define SLIDE_COOLDOWN_MS               1000
 
 // =============================================================================
 // PERFORMANCE THRESHOLDS
@@ -57,6 +84,20 @@
 #define MAX_PID_ERROR_THRESHOLD         100.0
 #define MIN_PREDICTION_CONFIDENCE       0.30
 #define DEFAULT_SMOOTHING_FACTOR        0.85
+
+// =============================================================================
+// MOVEMENT SYSTEM CONSTANTS
+// =============================================================================
+#define SLIDE_MOVEMENT_DURATION_MS      500
+#define SLIDE_MOVEMENT_COOLDOWN_MS      1000
+#define MOVEMENT_SYSTEM_ENABLED         true
+
+// =============================================================================
+// WEAPON PROFILE ENHANCEMENT FLAGS
+// =============================================================================
+#define ENHANCEMENT_RECOIL_CONTROL      0x01
+#define ENHANCEMENT_AIM_ASSIST          0x02
+#define ENHANCEMENT_SPREAD_CONTROL      0x04
 
 // =============================================================================
 // DEBUGGING MACROS

@@ -1,10 +1,11 @@
-// input.cpp - REFACTORED AND UPDATED VERSION v4.0.0
+// input.cpp - REFACTORED AND UPDATED VERSION v5.0.0
 // description: Input handling system encapsulated in a class. This system detects raw
 //              hardware input, determines player movement state, updates the StateManager,
 //              and publishes generic input events to the EventSystem.
+//              Enhanced with Z key slide movement support.
 // developer: ingekastel & Asistente de Programación
 // license: GNU General Public License v3.0
-// version: 4.0.0 - Refactored into InputSystem class, decoupled from game logic.
+// version: 5.0.0 - Enhanced with Z key slide movement and improved movement detection.
 // date: 2025-07-20
 // project: Tactical Aim Assist
 
@@ -29,7 +30,8 @@ std::unique_ptr<InputSystem> g_inputSystem;
 
 InputSystem::InputSystem(StateManager& stateManager, EventSystem& eventSystem)
     : m_stateManager(stateManager), 
-      m_eventSystem(eventSystem)
+      m_eventSystem(eventSystem),
+      m_slideStartTime(std::chrono::steady_clock::now())
 {
     // Initialize key state arrays to false (released)
     m_lastKeyState.fill(false);
@@ -51,12 +53,18 @@ bool InputSystem::initialize() {
     }
 
     m_isRunning.store(true);
+    m_movementSystemEnabled.store(true);
+    m_isSliding.store(false);
+    m_slideStartTime = std::chrono::steady_clock::now();
+
     logMessage("InputSystem: Initialized successfully.");
     return true;
 }
 
 void InputSystem::shutdown() {
     m_isRunning.store(false);
+    m_movementSystemEnabled.store(false);
+    m_isSliding.store(false);
     logMessage("InputSystem: Shutdown complete.");
 }
 
@@ -68,11 +76,38 @@ void InputSystem::runInputLoop() {
         processKeyboardState();
         processMouseState();
 
+        // Process slide movement if movement system is enabled
+        if (m_movementSystemEnabled.load()) {
+            processSlideMovement();
+        }
+
         // Control the polling rate to avoid excessive CPU usage
         std::this_thread::sleep_for(std::chrono::milliseconds(5));
     }
 
     logMessage("InputSystem: Input loop finished.");
+}
+
+// --- PUBLIC METHODS ---
+
+bool InputSystem::isSlideKeyPressed() const {
+    return m_currentKeyState['Z'] || m_currentKeyState['z'];
+}
+
+bool InputSystem::isSliding() const {
+    return m_isSliding.load();
+}
+
+void InputSystem::setMovementSystemEnabled(bool enabled) {
+    m_movementSystemEnabled.store(enabled);
+    if (!enabled) {
+        m_isSliding.store(false);
+    }
+    logMessage("InputSystem: Movement system " + std::string(enabled ? "enabled" : "disabled"));
+}
+
+bool InputSystem::isMovementSystemEnabled() const {
+    return m_movementSystemEnabled.load();
 }
 
 // --- PRIVATE METHODS ---
@@ -94,7 +129,9 @@ void InputSystem::processKeyboardState() {
     }
 
     // 3. Update the player's movement state based on currently held keys
-    updateMovementState();
+    if (m_movementSystemEnabled.load()) {
+        updateMovementState();
+    }
 
     // 4. Update the last key state for the next frame's comparison
     m_lastKeyState = m_currentKeyState;
@@ -123,8 +160,57 @@ void InputSystem::processMouseState() {
     }
 }
 
+void InputSystem::processSlideMovement() {
+    auto now = std::chrono::steady_clock::now();
+    bool zKeyPressed = isSlideKeyPressed();
+    
+    // Check if Z key was just pressed
+    if (zKeyPressed && !m_lastKeyState['Z'] && !m_lastKeyState['z']) {
+        // Start slide movement
+        m_isSliding.store(true);
+        m_slideStartTime = now;
+        logMessage("InputSystem: Slide movement started");
+        
+        // Publish slide start event
+        m_eventSystem.publishEventWithData(EventType::MovementStateChanged, 
+                                         static_cast<int>(PlayerMovementState::Sliding));
+    }
+    
+    // Check if slide should end (duration exceeded or Z key released)
+    if (m_isSliding.load()) {
+        auto slideDuration = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_slideStartTime);
+        
+        if (!zKeyPressed || slideDuration >= SLIDE_DURATION_MS) {
+            // End slide movement
+            m_isSliding.store(false);
+            logMessage("InputSystem: Slide movement ended");
+            
+            // Publish slide end event
+            m_eventSystem.publishEventWithData(EventType::MovementStateChanged, 
+                                             static_cast<int>(PlayerMovementState::Stationary));
+        }
+    }
+}
+
 void InputSystem::updateMovementState() {
-    // This logic determines the player's physical state based on keys being held down.
+    // Calculate the new movement state
+    PlayerMovementState new_state = calculateMovementState();
+
+    // Only update the StateManager if the state has actually changed
+    if (m_stateManager.getPlayerMovementState() != new_state) {
+        m_stateManager.setPlayerMovementState(new_state);
+        
+        // Publish movement state change event
+        m_eventSystem.publishEventWithData(EventType::MovementStateChanged, 
+                                         static_cast<int>(new_state));
+    }
+}
+
+PlayerMovementState InputSystem::calculateMovementState() {
+    // Check for Z key slide movement first
+    if (m_isSliding.load()) {
+        return PlayerMovementState::Sliding;
+    }
     
     bool isShiftPressed = m_currentKeyState[VK_LSHIFT] || m_currentKeyState[VK_RSHIFT];
     bool isCtrlPressed = m_currentKeyState[VK_LCONTROL] || m_currentKeyState[VK_RCONTROL];
@@ -159,12 +245,8 @@ void InputSystem::updateMovementState() {
         new_state = PlayerMovementState::Stationary;
     }
 
-    // Only update the StateManager if the state has actually changed
-    if (m_stateManager.getPlayerMovementState() != new_state) {
-        m_stateManager.setPlayerMovementState(new_state);
-    }
+    return new_state;
 }
-
 
 // =============================================================================
 // GLOBAL C-STYLE API IMPLEMENTATION
@@ -191,5 +273,18 @@ void runInputLoop() {
         g_inputSystem->runInputLoop();
     } else {
         logError("InputSystem Error: Tried to run loop on an uninitialized system.");
+    }
+}
+
+bool isSlideMovementActive() {
+    if (g_inputSystem) {
+        return g_inputSystem->isSliding();
+    }
+    return false;
+}
+
+void setMovementSystemEnabled(bool enabled) {
+    if (g_inputSystem) {
+        g_inputSystem->setMovementSystemEnabled(enabled);
     }
 }
