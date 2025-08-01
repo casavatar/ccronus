@@ -16,6 +16,7 @@
 #include <thread>
 #include <atomic>
 #include <array>
+#include "../core/globals.h" // Include for PlayerMovementState
 
 // Forward declarations
 class StateManager;
@@ -125,8 +126,8 @@ private:
 
     // Slide movement timing
     std::chrono::steady_clock::time_point m_slideStartTime;
-    static constexpr auto SLIDE_DURATION_MS = std::chrono::milliseconds(500);
-    static constexpr auto SLIDE_COOLDOWN_MS = std::chrono::milliseconds(1000);
+    static constexpr auto SLIDE_DURATION_TIME = std::chrono::milliseconds(500);
+    static constexpr auto SLIDE_COOLDOWN_TIME = std::chrono::milliseconds(1000);
 };
 
 // =============================================================================

@@ -172,7 +172,7 @@ void InputSystem::processSlideMovement() {
         logMessage("InputSystem: Slide movement started");
         
         // Publish slide start event
-        m_eventSystem.publishEventWithData(EventType::MovementStateChanged, 
+        m_eventSystem.publishEventWithData(EventType::PlayerMovementChanged, 
                                          static_cast<int>(PlayerMovementState::Sliding));
     }
     
@@ -180,13 +180,13 @@ void InputSystem::processSlideMovement() {
     if (m_isSliding.load()) {
         auto slideDuration = std::chrono::duration_cast<std::chrono::milliseconds>(now - m_slideStartTime);
         
-        if (!zKeyPressed || slideDuration >= SLIDE_DURATION_MS) {
+        if (!zKeyPressed || slideDuration >= SLIDE_DURATION_TIME) {
             // End slide movement
             m_isSliding.store(false);
             logMessage("InputSystem: Slide movement ended");
             
             // Publish slide end event
-            m_eventSystem.publishEventWithData(EventType::MovementStateChanged, 
+            m_eventSystem.publishEventWithData(EventType::PlayerMovementChanged, 
                                              static_cast<int>(PlayerMovementState::Stationary));
         }
     }
@@ -201,7 +201,7 @@ void InputSystem::updateMovementState() {
         m_stateManager.setPlayerMovementState(new_state);
         
         // Publish movement state change event
-        m_eventSystem.publishEventWithData(EventType::MovementStateChanged, 
+        m_eventSystem.publishEventWithData(EventType::PlayerMovementChanged, 
                                          static_cast<int>(new_state));
     }
 }

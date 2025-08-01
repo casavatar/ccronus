@@ -75,8 +75,6 @@
 #define AUDIO_POLL_INTERVAL_MS          10
 #define MAIN_LOOP_SLEEP_MS              10
 #define ANALYTICS_UPDATE_INTERVAL_MS    100
-#define SLIDE_DURATION_MS               500
-#define SLIDE_COOLDOWN_MS               1000
 
 // =============================================================================
 // PERFORMANCE THRESHOLDS
@@ -88,8 +86,6 @@
 // =============================================================================
 // MOVEMENT SYSTEM CONSTANTS
 // =============================================================================
-#define SLIDE_MOVEMENT_DURATION_MS      500
-#define SLIDE_MOVEMENT_COOLDOWN_MS      1000
 #define MOVEMENT_SYSTEM_ENABLED         true
 
 // =============================================================================
