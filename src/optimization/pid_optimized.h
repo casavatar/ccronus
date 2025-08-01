@@ -1,10 +1,14 @@
 // pid_optimized.h - CORRECTED VERSION v3.0.6
+// --------------------------------------------------------------------------------------
 // description: Optimized PID controller system with SIMD and memory pooling
-// developer: ingekastel
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 3.0.6 - Fixed ObjectPool template conflicts
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
@@ -15,6 +19,9 @@
 #include <mutex>
 #include <chrono>
 #include <unordered_map>
+#include <thread>
+#include <algorithm>
+#include <cctype>
 #include "common_defines.h"
 
 // Forward declarations - CORRECTED

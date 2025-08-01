@@ -1,12 +1,16 @@
 // globals.cpp - FINAL CLEANED VERSION v5.0.0
+// --------------------------------------------------------------------------------------
 // description: Implementation of global stateless utility functions.
 //              All mutable global state variables and their related functions
 //              have been removed.
-// developer: ingekastel & Asistente de Programación
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 5.0.0 - Major refactor complete. Removed all global state variables.
 // date: 2025-07-20
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "globals.h"
 #include <iostream>

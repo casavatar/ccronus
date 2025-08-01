@@ -1,10 +1,15 @@
-// systems.cpp - FIXED all errors v3.0.4
+// --------------------------------------------------------------------------------------
 // description: Core systems implementation - Fixed all compilation issues
-// developer: ingekastel
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 // version: 3.0.4 - Fixed all compilation errors
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "systems.h"
 #include "state_manager.h"
@@ -21,6 +26,7 @@
 #include <memory>
 #include <cmath>
 #include <algorithm>
+#include <cctype>
 
 #include "globals.h"
 #include "core/config.h"

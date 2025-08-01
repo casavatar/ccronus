@@ -1,10 +1,14 @@
 // pid_optimized.cpp - CORRECTED VERSION v3.0.6
+// --------------------------------------------------------------------------------------
 // description: Implementation of optimized PID controller system
-// developer: ingekastel
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 3.0.6 - Fixed ObjectPool template conflicts
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "pid_optimized.h"
 #include "globals.h"
@@ -15,6 +19,8 @@
 #include <stdexcept>
 #include <cstring>
 #include <immintrin.h>
+#include <thread>
+#include <cctype>
 
 // =============================================================================
 // SIMD UTILITIES

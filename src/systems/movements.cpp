@@ -1,8 +1,15 @@
 // movements.cpp - CORRECTED AND UPDATED VERSION v1.1.0
+// --------------------------------------------------------------------------------------
 // description: Implementation of the MovementSystem class.
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 1.1.0 - Fixed exception handling and C++20 initializer warnings.
+// license: GNU General Public License v3.0
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "movements.h"
 #include "state_manager.h"
@@ -10,6 +17,8 @@
 #include "globals.h"
 
 #include <random>
+#include <algorithm>
+#include <cctype>
 
 // Global instance
 std::unique_ptr<MovementSystem> g_movementSystem;

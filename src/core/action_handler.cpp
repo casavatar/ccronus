@@ -1,14 +1,23 @@
 // action_handler.cpp - CORRECTED AND UPDATED VERSION v1.2.1
+// --------------------------------------------------------------------------------------
 // description: Implementation for the ActionHandler class. This system listens for
 //              raw input events and translates them into semantic game actions.
+// -------------------------------------------------------------------------------------- 
+// developer: ekastel
+//
 // version: 1.2.1 - Corrected signed/unsigned warnings and missing includes.
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "action_handler.h" // For ActionHandler class
 #include "state_manager.h" // For state manager
 #include "event_system.h" // For event system
 #include "globals.h" // For Keybindings struct, logging, and getCurrentModifierState()
+#include <thread>
+#include <algorithm>
+#include <cctype>
 
 // =============================================================================
 // GLOBAL INSTANCE DEFINITION

@@ -1,11 +1,16 @@
 // assist_optimized.cpp - FINAL REFACTORED VERSION v5.0.0
+// --------------------------------------------------------------------------------------
 // description: Optimized aim assist system implementation, fully compatible with the
 //              new detailed data structures from globals.h.
-// developer: ingekastel & Asistente de Programación
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 5.0.0 - Adapted to new globals.h v5.1.0 data structures.
+// license: GNU General Public License v3.0
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "assist_optimized.h"
 #include "state_manager.h"
@@ -22,6 +27,7 @@
 #include <vector>
 #include <string>
 #include <random>
+#include <cctype>
 
 // Global instance of the Aim Assist System
 std::unique_ptr<OptimizedAimAssistSystem> g_aimAssistSystem;

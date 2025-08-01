@@ -1,14 +1,23 @@
 // config.h - FINAL CORRECTED VERSION v5.2.1
+// --------------------------------------------------------------------------------------
 // description: Header for the configuration management system.
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 5.2.1 - Removed duplicate member declarations in AppSettings.
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
 #include <string>
 #include <vector>
 #include <mutex>
+#include <thread>
+#include <algorithm>
+#include <cctype>
 
 #include "globals.h"
 #include "assist_optimized.h"

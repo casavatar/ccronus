@@ -1,10 +1,14 @@
 // memory_pool.cpp - CORRECTED VERSION v3.0.5
+// --------------------------------------------------------------------------------------
 // description: Implementation of memory pool management
-// developer: ingekastel
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 3.0.5 - Fixed atomic and type issues
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "memory_pool.h"
 #include "globals.h"
@@ -12,6 +16,8 @@
 #include <sstream>
 #include <algorithm>
 #include <iomanip>
+#include <thread>
+#include <cctype>
 
 // =============================================================================
 // EXPLICIT TEMPLATE INSTANTIATIONS

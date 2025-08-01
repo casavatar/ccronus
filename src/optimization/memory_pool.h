@@ -1,10 +1,14 @@
 // memory_pool.h - CORRECTED VERSION v3.0.5
+// --------------------------------------------------------------------------------------
 // description: Memory pool management with thread-safe operations
-// developer: ingekastel
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 3.0.5 - Fixed atomic and incomplete type issues
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
@@ -19,6 +23,9 @@
 #include <stack>
 #include <typeinfo>
 #include <cstddef>
+#include <thread>
+#include <algorithm>
+#include <cctype>
 #include "common_defines.h"
 #include "globals.h"
 
@@ -63,6 +70,62 @@ struct PoolConfig {
     PoolConfig() = default;
     PoolConfig(size_t init, size_t max, size_t growth = 2) 
         : initial_size(init), max_size(max), growth_factor(growth) {}
+};
+
+// Adaptive pool configuration based on usage patterns
+struct AdaptivePoolConfig {
+    size_t min_size = 10;
+    size_t max_size = 1000;
+    size_t growth_factor = 2;
+    size_t shrink_threshold = 0.1; // 10% usage triggers shrink
+    size_t expand_threshold = 0.8; // 80% usage triggers expand
+    size_t max_fragmentation = 0.3; // 30% fragmentation threshold
+    
+    // Usage tracking
+    size_t total_requests = 0;
+    size_t cache_hits = 0;
+    size_t cache_misses = 0;
+    size_t peak_usage = 0;
+    size_t current_usage = 0;
+    
+    // Performance metrics
+    double average_allocation_time_ns = 0.0;
+    double average_deallocation_time_ns = 0.0;
+    double fragmentation_ratio = 0.0;
+    
+    void updateMetrics(size_t requests, size_t hits, size_t misses, size_t usage) {
+        total_requests += requests;
+        cache_hits += hits;
+        cache_misses += misses;
+        current_usage = usage;
+        peak_usage = std::max(peak_usage, usage);
+        
+        // Calculate fragmentation
+        if (current_usage > 0) {
+            fragmentation_ratio = static_cast<double>(cache_misses) / total_requests;
+        }
+    }
+    
+    double getHitRatio() const {
+        return total_requests > 0 ? static_cast<double>(cache_hits) / total_requests : 0.0;
+    }
+    
+    bool shouldExpand() const {
+        return getHitRatio() < expand_threshold && current_usage > 0;
+    }
+    
+    bool shouldShrink() const {
+        return getHitRatio() > (1.0 - shrink_threshold) && current_usage < peak_usage * 0.5;
+    }
+    
+    size_t calculateOptimalSize() const {
+        if (shouldExpand()) {
+            return std::min(max_size, current_usage * growth_factor);
+        } else if (shouldShrink()) {
+            return std::max(min_size, current_usage / growth_factor);
+        }
+        return current_usage;
+    }
 };
 
 // =============================================================================
@@ -170,6 +233,23 @@ public:
     
     template<typename... Args>
     UniquePtr acquire(Args&&... args) {
+        auto start_time = std::chrono::high_resolution_clock::now();
+        
+        // Try lock-free acquisition first
+        std::unique_ptr<T> obj = tryAcquireLockFree();
+        if (obj) {
+            m_stats.pool_hits.fetch_add(1);
+            m_stats.objects_in_use.fetch_add(1);
+            updateAdaptiveMetrics(true, start_time);
+            
+            auto deleter = [this](T* ptr) {
+                this->deallocateToPool(ptr);
+            };
+            
+            return UniquePtr(obj.release(), deleter);
+        }
+        
+        // Fall back to locked acquisition
         std::lock_guard<std::mutex> lock(m_mutex);
         
         // Create deleter that returns object to pool
@@ -182,11 +262,13 @@ public:
             m_available_objects.pop();
             m_stats.pool_hits.fetch_add(1);
             m_stats.objects_in_use.fetch_add(1);
+            updateAdaptiveMetrics(true, start_time);
             
             return UniquePtr(obj.release(), deleter);
         } else {
             m_stats.pool_misses.fetch_add(1);
             m_stats.objects_in_use.fetch_add(1);
+            updateAdaptiveMetrics(false, start_time);
             
             return UniquePtr(new T(std::forward<Args>(args)...), deleter);
         }
@@ -213,6 +295,29 @@ public:
         m_stats.current_pool_size.store(m_available_objects.size());
     }
     
+    // Adaptive tuning methods
+    void performAdaptiveTuning() {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        
+        size_t current_size = m_available_objects.size();
+        size_t optimal_size = m_adaptive_config.calculateOptimalSize();
+        
+        if (optimal_size > current_size) {
+            // Expand pool
+            size_t expand_by = optimal_size - current_size;
+            expandPool(expand_by);
+            logMessage("Pool expanded by " + std::to_string(expand_by) + " objects");
+        } else if (optimal_size < current_size && current_size > m_config.initial_size) {
+            // Shrink pool
+            size_t shrink_by = current_size - optimal_size;
+            for (size_t i = 0; i < shrink_by && !m_available_objects.empty(); ++i) {
+                m_available_objects.pop();
+            }
+            m_stats.current_pool_size.store(m_available_objects.size());
+            logMessage("Pool shrunk by " + std::to_string(shrink_by) + " objects");
+        }
+    }
+    
     // Return statistics by value to avoid copy/move issues
     PoolStatistics getStatistics() const {
         PoolStatistics result;
@@ -225,6 +330,11 @@ public:
         return result;
     }
     
+    AdaptivePoolConfig getAdaptiveConfig() const {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        return m_adaptive_config;
+    }
+    
     void clearPool() {
         std::lock_guard<std::mutex> lock(m_mutex);
         while (!m_available_objects.empty()) {
@@ -234,6 +344,29 @@ public:
     }
     
 private:
+    // Lock-free acquisition attempt
+    std::unique_ptr<T> tryAcquireLockFree() {
+        // This is a simplified lock-free attempt
+        // In a real implementation, you'd use atomic operations
+        return nullptr; // For now, always fall back to locked version
+    }
+    
+    void updateAdaptiveMetrics(bool hit, std::chrono::high_resolution_clock::time_point start_time) {
+        auto end_time = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time);
+        
+        m_adaptive_config.total_requests++;
+        if (hit) {
+            m_adaptive_config.cache_hits++;
+        } else {
+            m_adaptive_config.cache_misses++;
+        }
+        
+        m_adaptive_config.current_usage = m_stats.objects_in_use.load();
+        m_adaptive_config.average_allocation_time_ns = 
+            (m_adaptive_config.average_allocation_time_ns + duration.count()) / 2.0;
+    }
+    
     void deallocateToPool(T* obj) {
         if (!obj) return;
         
@@ -249,6 +382,7 @@ private:
     }
     
     PoolConfig m_config;
+    AdaptivePoolConfig m_adaptive_config;
     mutable std::mutex m_mutex;
     mutable PoolStatistics m_stats;
     std::stack<std::unique_ptr<T>> m_available_objects;

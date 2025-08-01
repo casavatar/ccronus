@@ -1,10 +1,15 @@
 // profiles.cpp - WEAPON PROFILES IMPLEMENTATION v3.1.9
+// --------------------------------------------------------------------------------------
 // description: Complete weapon profiles management system - CORRECTED VERSION
-// developer: ingekastel
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // license: GNU General Public License v3.0
 // version: 3.1.9 - Fixed all compilation errors and member issues
 // date: 2025-07-17
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "profiles.h"
 #include "../core/globals.h"
@@ -13,6 +18,8 @@
 #include <filesystem>
 #include <sstream>
 #include <cmath>
+#include <thread>
+#include <cctype>
 
 // Include nlohmann/json for JSON handling
 #include "../external/nlohmann/include/nlohmann/json.hpp"

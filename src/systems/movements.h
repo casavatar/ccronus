@@ -1,12 +1,16 @@
 // movements.h - REFACTORED AND UPDATED VERSION v1.0.0
+// --------------------------------------------------------------------------------------
 // description: Header for the MovementSystem class. This system is responsible
 //              for executing complex, multi-step tactical movements in a
 //              non-blocking way by using a dedicated worker thread.
-// developer: ingekastel & Asistente de Programación
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 1.0.0 - Initial class-based, event-driven design.
 // date: 2025-07-20
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
@@ -17,6 +21,8 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <algorithm>
+#include <cctype>
 
 // Forward declarations
 class StateManager;

@@ -1,14 +1,23 @@
 // config.cpp - FINAL REFACTORED VERSION v5.2.0
+// --------------------------------------------------------------------------------------
 // description: Implementation of the configuration management system.
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 5.2.0 - Implemented full loading/saving for detailed weapon profiles.
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "config.h"
 #include "state_manager.h"
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <thread>
+#include <algorithm>
+#include <cctype>
 
 #include "../external/nlohmann/include/nlohmann/json.hpp"
 using json = nlohmann::json;

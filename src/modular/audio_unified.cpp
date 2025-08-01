@@ -1,10 +1,15 @@
 // audio_unified.cpp - COMPLETE FIXED VERSION v3.0.7
+// --------------------------------------------------------------------------------------
 // description: Unified audio processing system - Fixed FilterType scope
-// developer: ingekastel
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // license: GNU General Public License v3.0
 // version: 3.0.7 - Fixed FilterType declaration
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include <iostream>
 #include <windows.h>
@@ -19,6 +24,7 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
+#include <cctype>
 
 #include "globals.h"
 #include "core/config.h"

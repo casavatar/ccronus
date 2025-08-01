@@ -1,8 +1,14 @@
 // state_manager.h - FINAL CORRECTED VERSION v5.2.0
+// --------------------------------------------------------------------------------------
 // description: Centralized state management system.
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 5.2.0 - Aligned with updated globals.h data structures.
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
@@ -15,6 +21,9 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <thread>
+#include <algorithm>
+#include <cctype>
 
 // Include necessary type definitions from other modules
 #include "globals.h"

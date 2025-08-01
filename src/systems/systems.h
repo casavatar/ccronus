@@ -1,8 +1,15 @@
 // systems.h - CORRECTED VERSION v1.1.0
+// --------------------------------------------------------------------------------------
 // description: Header for core gameplay systems.
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 1.1.0 - Integrated systems with StateManager.
+// license: GNU General Public License v3.0
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
@@ -19,6 +26,8 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <algorithm>
+#include <cctype>
 #include "common_defines.h"
 
 // Forward declarations

@@ -1,10 +1,14 @@
 // common_defines.h
+// --------------------------------------------------------------------------------------
 // description: Centralized definitions to eliminate duplications across the project
-// developer: ingekastel
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 4.0.0 - Enhanced with new GUI control IDs and features
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 

@@ -1,10 +1,15 @@
 // event_system.cpp - CORRECTED VERSION MATCHING HEADER v3.1.3
+// --------------------------------------------------------------------------------------
 // description: Event system implementation - Matches header API exactly
-// developer: ingekastel
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // license: GNU General Public License v3.0
 // version: 3.1.3 - Corrected to match header API
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include <iostream>
 #include <windows.h>
@@ -22,6 +27,7 @@
 #include <string>
 #include <sstream>
 #include <algorithm>
+#include <cctype>
 
 #include "event_system.h"
 #include "globals.h"
@@ -43,9 +49,7 @@ std::unique_ptr<EventSystem> g_eventSystem;
 // EVENT SYSTEM IMPLEMENTATION
 // =============================================================================
 EventSystem::EventSystem() 
-    : m_event_queue([](const std::shared_ptr<BaseEvent>& a, const std::shared_ptr<BaseEvent>& b) {
-        return eventPriorityComparator(a, b);
-    }) {
+    : m_event_queue(EventPriorityComparator()) {
     logDebug("EventSystem constructor called");
 }
 
@@ -117,33 +121,27 @@ bool EventSystem::isRunning() const {
     return m_running.load() && m_initialized.load();
 }
 
-void EventSystem::publishEvent(const BaseEvent& event) {
-    if (!isRunning()) return;
+void EventSystem::publishEvent(EventType type, EventPriority priority, const std::string& source) {
+    BaseEvent event(type, priority, source);
+    publishEvent(std::make_shared<BaseEvent>(event));
+}
+
+void EventSystem::publishEvent(std::shared_ptr<BaseEvent> event) {
+    if (!event) return;
     
-    auto eventPtr = std::make_shared<BaseEvent>(event);
-    
-    {
+    if (m_use_lockfree_queue.load()) {
+        // Use lock-free queue
+        m_lockfree_event_queue.push(event);
+    } else {
+        // Fallback to legacy queue
         std::lock_guard<std::mutex> lock(m_queue_mutex);
-        
-        // Check queue size limits
-        if (m_event_queue.size() >= m_max_queue_size) {
-            // Remove oldest low-priority event if queue is full
-            logDebug("Event queue full, may drop events");
-        }
-        
-        m_event_queue.push(eventPtr);
-    }
-    
-    m_queue_cv.notify_one();
-    
-    if (g_debugMode.load()) {
-        logDebug("Published event: " + std::to_string(static_cast<int>(event.type)));
+        m_event_queue.push(event);
+        m_queue_cv.notify_one();
     }
 }
 
-void EventSystem::publishEvent(EventType type, EventPriority priority, const std::string& source) {
-    BaseEvent event(type, priority, source);
-    publishEvent(event);
+void EventSystem::publishEvent(const BaseEvent& event) {
+    publishEvent(std::make_shared<BaseEvent>(event));
 }
 
 void EventSystem::publishGUIUpdate(const std::string& component, 
@@ -155,7 +153,7 @@ void EventSystem::publishGUIUpdate(const std::string& component,
     
     BaseEvent event(EventType::GUIUpdateRequested, EventPriority::Normal, "GUISystem");
     event.setData(guiData);
-    publishEvent(event);
+    publishEvent(std::make_shared<BaseEvent>(event));
 }
 
 void EventSystem::publishStateChange(const std::string& category, const std::string& old_value, 
@@ -164,13 +162,13 @@ void EventSystem::publishStateChange(const std::string& category, const std::str
     
     BaseEvent event(EventType::SystemStateChanged, EventPriority::High, "StateManager");
     event.setData(stateData);
-    publishEvent(event);
+    publishEvent(std::make_shared<BaseEvent>(event));
 }
 
 void EventSystem::publishPerformanceMetrics(const PerformanceMetricsEvent& metrics) {
     BaseEvent event(EventType::PerformanceMetricsUpdated, EventPriority::Low, "PerformanceMonitor");
     event.setData(metrics);
-    publishEvent(event);
+    publishEvent(std::make_shared<BaseEvent>(event));
 }
 
 void EventSystem::subscribe(EventType type, const std::string& handler_name, EventHandler handler) {
@@ -221,7 +219,7 @@ void EventSystem::unsubscribeAll(const std::string& handler_name) {
 
 void EventSystem::publishBatch(const std::vector<BaseEvent>& events) {
     for (const auto& event : events) {
-        publishEvent(event);
+        publishEvent(std::make_shared<BaseEvent>(event));
     }
 }
 
@@ -334,36 +332,23 @@ bool EventSystem::isProcessingPaused() const {
 void EventSystem::processingLoop() {
     logDebug("Event processing loop started");
     
+    // Pre-allocate event vector to avoid repeated allocations
+    std::vector<std::shared_ptr<BaseEvent>> events_to_process;
+    events_to_process.reserve(100); // Reserve space for batch processing
+    
     while (!m_should_stop.load()) {
-        std::shared_ptr<BaseEvent> event;
-        
-        {
-            std::unique_lock<std::mutex> lock(m_queue_mutex);
-            
-            m_queue_cv.wait(lock, [this] {
-                return !m_event_queue.empty() || m_should_stop.load();
-            });
-            
-            if (m_should_stop.load()) break;
-            
-            if (!m_event_queue.empty()) {
-                event = m_event_queue.top();
-                m_event_queue.pop();
-            }
+        if (m_use_lockfree_queue.load()) {
+            // Process lock-free queue
+            processLockFreeQueue(events_to_process);
+        } else {
+            // Process legacy queue
+            processLegacyQueue(events_to_process);
         }
         
-        // Check if processing is paused
-        if (m_paused.load()) {
-            // Put event back if paused
-            if (event) {
-                std::lock_guard<std::mutex> lock(m_queue_mutex);
-                m_event_queue.push(event);
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            continue;
-        }
-        
-        if (event) {
+        // Process events in batch
+        for (auto& event : events_to_process) {
+            if (!event) continue;
+            
             // Check if event is expired
             if (isEventExpired(*event)) {
                 logDebug("Skipping expired event");
@@ -380,9 +365,65 @@ void EventSystem::processingLoop() {
             // Update statistics
             updateStatistics(event->type, processing_time);
         }
+        
+        // Clear the batch for next iteration
+        events_to_process.clear();
     }
     
     logDebug("Event processing loop ended");
+}
+
+void EventSystem::processLockFreeQueue(std::vector<std::shared_ptr<BaseEvent>>& events_to_process) {
+    // Check if processing is paused
+    if (m_paused.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        return;
+    }
+    
+    // Process up to 10 events from lock-free queue
+    size_t batch_size = 0;
+    std::shared_ptr<BaseEvent> event;
+    
+    while (batch_size < 10 && m_lockfree_event_queue.pop(event)) {
+        events_to_process.push_back(event);
+        batch_size++;
+    }
+    
+    // Small sleep if no events to prevent busy waiting
+    if (batch_size == 0) {
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+    }
+}
+
+void EventSystem::processLegacyQueue(std::vector<std::shared_ptr<BaseEvent>>& events_to_process) {
+    // Batch process events to reduce lock contention
+    {
+        std::unique_lock<std::mutex> lock(m_queue_mutex);
+        
+        // Wait for events with timeout to prevent indefinite blocking
+        if (!m_queue_cv.wait_for(lock, std::chrono::milliseconds(50), [this] {
+            return !m_event_queue.empty() || m_should_stop.load();
+        })) {
+            // Timeout occurred, continue loop
+            return;
+        }
+        
+        if (m_should_stop.load()) return;
+        
+        // Check if processing is paused
+        if (m_paused.load()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            return;
+        }
+        
+        // Batch collect events (up to 10 at a time)
+        size_t batch_size = 0;
+        while (!m_event_queue.empty() && batch_size < 10) {
+            events_to_process.push_back(m_event_queue.top());
+            m_event_queue.pop();
+            batch_size++;
+        }
+    }
 }
 
 void EventSystem::processEvent(std::shared_ptr<BaseEvent> event) {
@@ -760,4 +801,13 @@ void printEventSystemStatus() {
     for (const auto& line : diagnostics) {
         logMessage(line);
     }
+}
+
+void EventSystem::setUseLockFreeQueue(bool use_lockfree) {
+    m_use_lockfree_queue.store(use_lockfree);
+    logMessage("Event system switched to " + std::string(use_lockfree ? "lock-free" : "legacy") + " queue");
+}
+
+bool EventSystem::isUsingLockFreeQueue() const {
+    return m_use_lockfree_queue.load();
 }

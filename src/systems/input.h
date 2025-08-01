@@ -1,13 +1,17 @@
 // input.h - REFACTORED AND UPDATED VERSION v2.0.0
+// --------------------------------------------------------------------------------------
 // description: Header for the InputSystem class. This system detects raw hardware
 //              input, determines player movement state, updates the StateManager,
 //              and publishes generic input events to the EventSystem.
 //              Enhanced with Z key slide movement support.
-// developer: ingekastel & Asistente de Programación
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 2.0.0 - Enhanced with Z key slide movement and improved movement detection.
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
@@ -16,6 +20,8 @@
 #include <thread>
 #include <atomic>
 #include <array>
+#include <algorithm>
+#include <cctype>
 #include "../core/globals.h" // Include for PlayerMovementState
 
 // Forward declarations
@@ -82,31 +88,12 @@ public:
     bool isMovementSystemEnabled() const;
 
 private:
-    /**
-     * @brief Processes the current state of the keyboard, detects new presses, and updates movement state.
-     */
+    // --- PRIVATE METHODS ---
     void processKeyboardState();
-
-    /**
-     * @brief Processes the current state of the mouse, detects movement, and updates cursor state.
-     */
+    void processKeyboardStateOptimized(const std::vector<int>& monitoredKeys);
     void processMouseState();
-
-    /**
-     * @brief Determines the player's movement state based on currently held keys and updates the StateManager.
-     *        Enhanced with Z key slide movement detection.
-     */
-    void updateMovementState();
-
-    /**
-     * @brief Handles Z key slide movement logic.
-     */
     void processSlideMovement();
-
-    /**
-     * @brief Checks for movement key combinations and determines the appropriate movement state.
-     * @return The calculated movement state.
-     */
+    void updateMovementState();
     PlayerMovementState calculateMovementState();
 
     // --- Member Variables ---

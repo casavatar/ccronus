@@ -1,8 +1,14 @@
 // globals.h - CORRECTED VERSION v5.1.0
+// --------------------------------------------------------------------------------------
 // description: Global type definitions, constants, and stateless utility functions.
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 5.1.0 - Added missing constructors and consolidated TargetInfo members.
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 #ifndef GLOBALS_H

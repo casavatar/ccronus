@@ -1,13 +1,17 @@
 // input.cpp - REFACTORED AND UPDATED VERSION v5.0.0
+// --------------------------------------------------------------------------------------
 // description: Input handling system encapsulated in a class. This system detects raw
 //              hardware input, determines player movement state, updates the StateManager,
 //              and publishes generic input events to the EventSystem.
 //              Enhanced with Z key slide movement support.
-// developer: ingekastel & Asistente de Programación
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 5.0.0 - Enhanced with Z key slide movement and improved movement detection.
 // date: 2025-07-20
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "input.h"
 #include "state_manager.h"
@@ -17,6 +21,8 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <algorithm>
+#include <cctype>
 
 // =============================================================================
 // GLOBAL INPUT SYSTEM INSTANCE
@@ -71,9 +77,17 @@ void InputSystem::shutdown() {
 void InputSystem::runInputLoop() {
     logMessage("InputSystem: Starting input processing loop...");
     
+    // Define only the keys we actually need to monitor
+    const std::vector<int> monitoredKeys = {
+        'W', 'A', 'S', 'D', 'Z', 'X', 'C', 'V', 'Q', 'E', 'R', 'F',
+        'G', 'H', 'T', 'Y', 'U', 'I', 'O', 'P', 'J', 'K', 'L', 'N', 'M',
+        VK_SPACE, VK_SHIFT, VK_CONTROL, 18, VK_TAB, VK_ESCAPE, // 18 is VK_MENU (Alt)
+        VK_F1, VK_F2, VK_F3, VK_F4, VK_F5, VK_F6, VK_F7, VK_F8, VK_F9, VK_F10, VK_F11, VK_F12
+    };
+    
     while (m_isRunning.load() && g_application_running.load()) {
         // Process keyboard and mouse state at a regular interval
-        processKeyboardState();
+        processKeyboardStateOptimized(monitoredKeys);
         processMouseState();
 
         // Process slide movement if movement system is enabled
@@ -81,8 +95,8 @@ void InputSystem::runInputLoop() {
             processSlideMovement();
         }
 
-        // Control the polling rate to avoid excessive CPU usage
-        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        // Increased polling interval to reduce CPU usage
+        std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS instead of 200 FPS
     }
 
     logMessage("InputSystem: Input loop finished.");
@@ -135,6 +149,33 @@ void InputSystem::processKeyboardState() {
 
     // 4. Update the last key state for the next frame's comparison
     m_lastKeyState = m_currentKeyState;
+}
+
+// New optimized keyboard processing method
+void InputSystem::processKeyboardStateOptimized(const std::vector<int>& monitoredKeys) {
+    // Only check monitored keys instead of all 255 keys
+    for (int vk : monitoredKeys) {
+        bool currentState = (GetAsyncKeyState(vk) & 0x8000) != 0;
+        
+        // Update current state
+        m_currentKeyState[vk] = currentState;
+        
+        // Detect new key presses and publish events
+        if (currentState && !m_lastKeyState[vk]) {
+            m_eventSystem.publishEventWithData(EventType::KeyPressed, vk);
+        }
+    }
+
+    // Update the player's movement state based on currently held keys
+    if (m_movementSystemEnabled.load()) {
+        updateMovementState();
+    }
+
+    // Update the last key state for the next frame's comparison
+    // Only update the keys we actually monitor
+    for (int vk : monitoredKeys) {
+        m_lastKeyState[vk] = m_currentKeyState[vk];
+    }
 }
 
 void InputSystem::processMouseState() {
@@ -193,59 +234,31 @@ void InputSystem::processSlideMovement() {
 }
 
 void InputSystem::updateMovementState() {
-    // Calculate the new movement state
     PlayerMovementState new_state = calculateMovementState();
-
-    // Only update the StateManager if the state has actually changed
-    if (m_stateManager.getPlayerMovementState() != new_state) {
-        m_stateManager.setPlayerMovementState(new_state);
-        
-        // Publish movement state change event
-        m_eventSystem.publishEventWithData(EventType::PlayerMovementChanged, 
-                                         static_cast<int>(new_state));
-    }
+    
+    // Update the state manager with the new movement state
+    m_stateManager.setPlayerMovementState(new_state);
+    
+    // Publish movement state change event
+    m_eventSystem.publishEvent(EventType::PlayerMovementChanged, EventPriority::Normal, "InputSystem");
 }
 
 PlayerMovementState InputSystem::calculateMovementState() {
-    // Check for Z key slide movement first
-    if (m_isSliding.load()) {
-        return PlayerMovementState::Sliding;
-    }
+    // Check for movement keys
+    bool w_pressed = m_currentKeyState['W'] || m_currentKeyState['w'];
+    bool a_pressed = m_currentKeyState['A'] || m_currentKeyState['a'];
+    bool s_pressed = m_currentKeyState['S'] || m_currentKeyState['s'];
+    bool d_pressed = m_currentKeyState['D'] || m_currentKeyState['d'];
+    bool z_pressed = m_currentKeyState['Z'] || m_currentKeyState['z'];
     
-    bool isShiftPressed = m_currentKeyState[VK_LSHIFT] || m_currentKeyState[VK_RSHIFT];
-    bool isCtrlPressed = m_currentKeyState[VK_LCONTROL] || m_currentKeyState[VK_RCONTROL];
-    bool isSpacePressed = m_currentKeyState[VK_SPACE];
-    bool isWASDPressed = m_currentKeyState['W'] || m_currentKeyState['A'] ||
-                         m_currentKeyState['S'] || m_currentKeyState['D'];
-
-    PlayerMovementState new_state = PlayerMovementState::Stationary;
-
-    if (isSpacePressed) {
-        // For simplicity, we'll just call it Jumping. A more complex system
-        // could check for time in air to determine if Falling.
-        new_state = PlayerMovementState::Jumping;
-    } else if (isWASDPressed) {
-        if (isShiftPressed && isCtrlPressed) {
-            new_state = PlayerMovementState::Sliding; // Example of a combo move
-        } else if (isShiftPressed) {
-            new_state = PlayerMovementState::Sprinting;
-        } else if (isCtrlPressed) {
-            new_state = PlayerMovementState::Crouching;
-        } else {
-            // Check for strafing
-            bool isStrafingOnly = (m_currentKeyState['A'] || m_currentKeyState['D']) &&
-                                  !(m_currentKeyState['W'] || m_currentKeyState['S']);
-            if(isStrafingOnly) {
-                new_state = PlayerMovementState::Strafing;
-            } else {
-                 new_state = PlayerMovementState::Running; // Default non-sprint movement
-            }
-        }
+    // Priority: Sliding > Walking > Stationary
+    if (z_pressed && m_isSliding.load()) {
+        return PlayerMovementState::Sliding;
+    } else if (w_pressed || a_pressed || s_pressed || d_pressed) {
+        return PlayerMovementState::Walking;
     } else {
-        new_state = PlayerMovementState::Stationary;
+        return PlayerMovementState::Stationary;
     }
-
-    return new_state;
 }
 
 // =============================================================================

@@ -49,8 +49,12 @@ endif
 # Linker flags
 LDFLAGS = -static -static-libgcc -static-libstdc++
 LDFLAGS += -Wl,--gc-sections -Wl,--strip-all
+# Add -mwindows flag for GUI applications to suppress console window
+LDFLAGS += -mwindows
 ifeq ($(BUILD_TYPE),debug)
     LDFLAGS = -static-libgcc -static-libstdc++
+    # Keep -mwindows for debug builds too
+    LDFLAGS += -mwindows
 endif
 
 # =============================================================================
@@ -333,7 +337,7 @@ performance-test: release
 # =============================================================================
 # DOCUMENTATION
 # =============================================================================
-docs:
+gendocs:
 	@echo "📚 Generating documentation..."
 	@if command -v doxygen >/dev/null 2>&1; then \
 		doxygen Doxyfile; \
@@ -400,7 +404,7 @@ help:
 	@echo "  analyze      - Run comprehensive analysis"
 	@echo ""
 	@echo "📚 Documentation:"
-	@echo "  docs         - Generate documentation"
+	@echo "  gendocs      - Generate documentation"
 	@echo ""
 	@echo "📦 Installation:"
 	@echo "  install      - Install to system"

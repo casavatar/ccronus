@@ -1,27 +1,38 @@
 // event_system.h - FINAL CORRECTED VERSION v3.1.1
+// --------------------------------------------------------------------------------------
 // description: Event-driven system for efficient GUI updates and inter-component communication.
 //              This version includes a comprehensive EventType list and a non-exception-throwing getData method.
-// developer: ingekastel & Asistente de Programación
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // license: GNU General Public License v3.0
 // version: 3.1.1 - Corrected exception handling for compatibility.
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
+#include <iostream>
+#include <memory>
 #include <functional>
+#include <string>
 #include <unordered_map>
 #include <vector>
-#include <memory>
-#include <mutex>
-#include <atomic>
 #include <queue>
-#include <thread>
+#include <stack>
+#include <mutex>
 #include <condition_variable>
+#include <atomic>
 #include <chrono>
+#include <algorithm>
+#include <thread>
 #include <typeindex>
 #include <any>
 #include <stdexcept>
+#include <shared_mutex>
+#include <cctype>
 
 #include "common_defines.h"
 
@@ -188,6 +199,112 @@ struct MouseMovedEventData {
     int delta_y = 0;
 };
 
+// Event priority comparator for priority queue
+struct EventPriorityComparator {
+    bool operator()(const std::shared_ptr<BaseEvent>& a, const std::shared_ptr<BaseEvent>& b) const {
+        return static_cast<int>(a->priority) < static_cast<int>(b->priority);
+    }
+};
+
+// Lock-free event queue implementation
+template<typename T>
+class LockFreeQueue {
+private:
+    struct Node {
+        T data;
+        std::atomic<Node*> next{nullptr};
+        
+        Node() = default;
+        explicit Node(const T& item) : data(item) {}
+    };
+    
+    std::atomic<Node*> head{nullptr};
+    std::atomic<Node*> tail{nullptr};
+    std::atomic<size_t> size{0};
+    
+    // Memory pool for nodes
+    std::stack<Node*> node_pool;
+    mutable std::mutex pool_mutex;
+    
+public:
+    LockFreeQueue() {
+        // Initialize with dummy node
+        Node* dummy = new Node();
+        head.store(dummy);
+        tail.store(dummy);
+    }
+    
+    ~LockFreeQueue() {
+        Node* current = head.load();
+        while (current) {
+            Node* next = current->next.load();
+            delete current;
+            current = next;
+        }
+    }
+    
+    void push(const T& item) {
+        Node* new_node = allocateNode(item);
+        Node* old_tail = tail.load();
+        
+        while (!tail.compare_exchange_weak(old_tail, new_node)) {
+            // Retry if tail changed
+        }
+        
+        old_tail->next.store(new_node);
+        size.fetch_add(1);
+    }
+    
+    bool pop(T& item) {
+        Node* old_head = head.load();
+        Node* old_tail = tail.load();
+        
+        if (old_head == old_tail) {
+            return false; // Queue is empty
+        }
+        
+        Node* new_head = old_head->next.load();
+        if (!head.compare_exchange_weak(old_head, new_head)) {
+            return false; // Another thread beat us
+        }
+        
+        item = new_head->data;
+        deallocateNode(old_head);
+        size.fetch_sub(1);
+        return true;
+    }
+    
+    bool empty() const {
+        return head.load() == tail.load();
+    }
+    
+    size_t getSize() const {
+        return size.load();
+    }
+    
+private:
+    Node* allocateNode(const T& item) {
+        std::lock_guard<std::mutex> lock(pool_mutex);
+        if (!node_pool.empty()) {
+            Node* node = node_pool.top();
+            node_pool.pop();
+            node->data = item;
+            node->next.store(nullptr);
+            return node;
+        }
+        return new Node(item);
+    }
+    
+    void deallocateNode(Node* node) {
+        std::lock_guard<std::mutex> lock(pool_mutex);
+        if (node_pool.size() < 100) { // Limit pool size
+            node_pool.push(node);
+        } else {
+            delete node;
+        }
+    }
+};
+
 // =============================================================================
 // EVENT HANDLER TYPES
 // =============================================================================
@@ -210,6 +327,7 @@ class EventSystem {
         
         // Event publishing
         void publishEvent(const BaseEvent& event);
+        void publishEvent(std::shared_ptr<BaseEvent> event);
         void publishEvent(EventType type, EventPriority priority = EventPriority::Normal,
                          const std::string& source = "");
         
@@ -256,6 +374,14 @@ class EventSystem {
         void resumeProcessing();
         bool isProcessingPaused() const;
         
+        // Lock-free queue processing methods
+        void processLockFreeQueue(std::vector<std::shared_ptr<BaseEvent>>& events_to_process);
+        void processLegacyQueue(std::vector<std::shared_ptr<BaseEvent>>& events_to_process);
+        
+        // Queue management
+        void setUseLockFreeQueue(bool use_lockfree);
+        bool isUsingLockFreeQueue() const;
+        
     private:
         // Core state
         std::atomic<bool> m_initialized{false};
@@ -267,11 +393,14 @@ class EventSystem {
         size_t m_max_queue_size = 1000;
         uint32_t m_event_timeout_ms = 5000;
         
-        // Event queue and processing
+        // Lock-free event queue
+        LockFreeQueue<std::shared_ptr<BaseEvent>> m_lockfree_event_queue;
+        std::atomic<bool> m_use_lockfree_queue{true};
+        
+        // Legacy queue (fallback)
         std::priority_queue<std::shared_ptr<BaseEvent>, 
-                           std::vector<std::shared_ptr<BaseEvent>>,
-                           std::function<bool(const std::shared_ptr<BaseEvent>&, 
-                                            const std::shared_ptr<BaseEvent>&)>> m_event_queue;
+                       std::vector<std::shared_ptr<BaseEvent>>, 
+                       EventPriorityComparator> m_event_queue;
         mutable std::mutex m_queue_mutex;
         std::condition_variable m_queue_cv;
         

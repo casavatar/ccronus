@@ -1,11 +1,21 @@
 // state_manager.cpp - FINAL CORRECTED VERSION v5.2.0
+// --------------------------------------------------------------------------------------
 // description: Implementation of the centralized state management system.
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 5.2.0 - Aligned with updated globals.h data structures.
+// license: GNU General Public License v3.0
 // date: 2025-07-21
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #include "state_manager.h"
 #include <sstream>
+#include <thread>
+#include <algorithm>
+#include <cctype>
 
 // Global instance definition
 std::unique_ptr<StateManager> g_stateManager = nullptr;

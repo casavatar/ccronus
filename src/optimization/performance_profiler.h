@@ -1,10 +1,15 @@
+// --------------------------------------------------------------------------------------
 // performance_profiler.h - CORRECTED VERSION v3.0.5
+// --------------------------------------------------------------------------------------
 // description: Performance profiling system with metrics collection
-// developer: ingekastel
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 3.0.5 - Fixed singleton constructor access
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
@@ -22,7 +27,62 @@
 #include <algorithm>
 #include <functional>
 #include <memory>
+#include <cctype>
 #include "common_defines.h"
+
+// =============================================================================
+// PROFILE-GUIDED OPTIMIZATION STRUCTURES
+// =============================================================================
+struct UsageProfile {
+    std::string component_name;
+    uint64_t call_count{0};
+    uint64_t total_time_ns{0};
+    uint64_t peak_time_ns{0};
+    uint64_t last_called{0};
+    double frequency_per_second{0.0};
+    bool is_critical_path{false};
+    
+    UsageProfile() = default;
+    UsageProfile(const std::string& name) : component_name(name) {}
+    
+    void recordCall(uint64_t duration_ns) {
+        call_count++;
+        total_time_ns += duration_ns;
+        peak_time_ns = std::max(peak_time_ns, duration_ns);
+        last_called = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::steady_clock::now().time_since_epoch()).count();
+    }
+    
+    double getAverageTimeMs() const {
+        return call_count > 0 ? static_cast<double>(total_time_ns) / (call_count * 1000000.0) : 0.0;
+    }
+    
+    double getFrequency() const {
+        auto now = std::chrono::steady_clock::now();
+        auto age = std::chrono::duration_cast<std::chrono::seconds>(
+            now.time_since_epoch()).count() - (last_called / 1000000000);
+        return age > 0 ? static_cast<double>(call_count) / age : 0.0;
+    }
+};
+
+struct CriticalPath {
+    std::string path_name;
+    std::vector<std::string> components;
+    uint64_t total_execution_time_ns{0};
+    uint64_t execution_count{0};
+    double optimization_priority{0.0};
+    
+    CriticalPath() = default;
+    CriticalPath(const std::string& name) : path_name(name) {}
+    
+    void addComponent(const std::string& component) {
+        components.push_back(component);
+    }
+    
+    double getAverageExecutionTimeMs() const {
+        return execution_count > 0 ? static_cast<double>(total_execution_time_ns) / (execution_count * 1000000.0) : 0.0;
+    }
+};
 
 // =============================================================================
 // FORWARD DECLARATIONS
@@ -328,6 +388,19 @@ public:
     CPUMetrics getCPUMetrics() const;
     FPSMetrics getFPSMetrics() const;
     
+    // Comprehensive statistics structure
+    struct Statistics {
+        double cpu_usage = 0.0;
+        size_t memory_usage_mb = 0;
+        size_t thread_count = 0;
+        double average_response_time_ms = 0.0;
+        double fps = 0.0;
+        size_t total_allocations = 0;
+        size_t total_deallocations = 0;
+    };
+    
+    Statistics getStatistics() const;
+    
     // Bulk data retrieval
     std::vector<std::string> getAllTimingNames() const;
     std::vector<std::string> getAllMemoryComponents() const;
@@ -357,6 +430,25 @@ public:
     std::vector<std::string> getOptimizationSuggestions() const;
     double getOverallPerformanceScore() const;
     
+    // Profile-guided optimization methods
+    void startCriticalPath(const std::string& path_name);
+    void endCriticalPath(const std::string& path_name);
+    void recordComponentUsage(const std::string& component_name, uint64_t duration_ns);
+    void markCriticalComponent(const std::string& component_name);
+    
+    // Analysis methods
+    std::vector<std::string> getTopCriticalPaths(size_t count = 5) const;
+    std::vector<std::string> getHighFrequencyComponents(size_t count = 10) const;
+    std::vector<std::string> getSlowComponents(double threshold_ms = 10.0) const;
+    double getOptimizationScore() const;
+    
+    // Optimization suggestions
+    void applyProfileGuidedOptimizations();
+    
+    // Usage profile access
+    const std::unordered_map<std::string, UsageProfile>& getUsageProfiles() const;
+    const std::unordered_map<std::string, CriticalPath>& getCriticalPaths() const;
+    
     // Thread management
     void startMonitoring();
     void stopMonitoring();
@@ -383,6 +475,12 @@ private:
     // System metrics
     CPUMetrics m_cpu_metrics;
     FPSMetrics m_fps_metrics;
+    
+    // Profile-guided optimization data
+    mutable std::mutex m_profile_mutex;
+    std::unordered_map<std::string, UsageProfile> m_usage_profiles;
+    std::unordered_map<std::string, CriticalPath> m_critical_paths;
+    std::unordered_map<std::string, std::chrono::steady_clock::time_point> m_active_paths;
     
     // Thread safety
     mutable std::mutex m_timing_mutex;

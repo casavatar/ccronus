@@ -1,10 +1,15 @@
 // profiles.h - WEAPON PROFILES HEADER FILE v3.1.9
+// --------------------------------------------------------------------------------------
 // description: Weapon profiles management system - CORRECTED VERSION
-// developer: ingekastel
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // license: GNU General Public License v3.0
 // version: 3.1.9 - Fixed all compilation errors and overload issues
 // date: 2025-07-17
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 #ifndef PROFILES_H
@@ -17,6 +22,9 @@
 #include <memory>
 #include <chrono>
 #include <cmath>
+#include <thread>
+#include <algorithm>
+#include <cctype>
 #include "../core/globals.h"
 
 // =============================================================================

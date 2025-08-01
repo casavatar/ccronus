@@ -1,10 +1,14 @@
 // simd_math.h - SIMD optimized mathematical operations v3.0.2
+// --------------------------------------------------------------------------------------
 // description: SIMD-accelerated math functions for performance optimization
-// developer: ingekastel
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 3.0.2 - SIMD mathematical operations
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
@@ -14,6 +18,8 @@
 #include <cmath>
 #include <algorithm>
 #include <utility>
+#include <thread>
+#include <cctype>
 
 #ifdef _WIN32
 #include <immintrin.h>

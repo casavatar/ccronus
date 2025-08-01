@@ -1,17 +1,24 @@
 // action_handler.h - VERSION 1.0.0
+// --------------------------------------------------------------------------------------
 // description: Header for the ActionHandler class. This system is responsible for
 //              interpreting raw input events (e.g., KeyPressed) and translating
 //              them into semantic game actions (e.g., ToggleAimAssist) based on
 //              the current keybindings stored in the StateManager.
-// developer: ingekastel & Asistente de Programación
-// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // version: 1.0.0 - Initial creation
 // date: 2025-07-20
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
 #include <memory>
+#include <thread>
+#include <algorithm>
+#include <cctype>
 
 // Forward declarations
 class StateManager;

@@ -1,10 +1,15 @@
 // audio_unified.h
+// --------------------------------------------------------------------------------------
 // description: Unified audio manager combining basic alerts and advanced FFT analysis
-// developer: ingekastel
+// --------------------------------------------------------------------------------------
+// developer: ekastel
+//
 // license: GNU General Public License v3.0
 // version: 3.0.0 - Unified Module
 // date: 2025-07-16
 // project: Tactical Aim Assist
+// license: GNU General Public License v3.0
+// --------------------------------------------------------------------------------------
 
 #pragma once
 
@@ -18,6 +23,8 @@
 #include <thread>
 #include <functional>
 #include <chrono>
+#include <algorithm>
+#include <cctype>
 #include "common_defines.h"
 
 // =============================================================================
